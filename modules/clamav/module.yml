@@ -1,0 +1,96 @@
+# modules/clamav/module.yml
+name: clamav
+version: 0.1.0
+min_lib_version: 0.1.0
+description: "ClamAV antivirus with scheduled scans, download watcher & USB scanner"
+type: system
+
+module_deps: []
+
+submodules:
+  core:
+    version: 0.1.0
+    description: "ClamAV shared setup (packages, config, SELinux, definitions)"
+    hooks:
+      install: shared/setup-clamav.sh
+      uninstall: shared/cleanup-clamav.sh
+    logrotate: logrotate/clamav-scripts
+    dirs:
+      - path: /var/log/clamav
+        mode: "755"
+
+  daily-clamscan:
+    version: 0.1.0
+    description: "Quick daily scan (Downloads, /tmp)"
+    source: scripts/services/daily-clamscan.sh
+    bin_name: daily-clamscan
+    deps:
+      - core
+    services:
+      - services/daily-clamscan.service
+    timers:
+      - timers/daily-clamscan.timer
+    notifications:
+      - tag: notify-daily-scan
+        icon: security-high
+        level: important
+
+  weekly-clamscan:
+    version: 0.1.0
+    description: "Full weekly system scan"
+    source: scripts/services/weekly-clamscan.sh
+    bin_name: weekly-clamscan
+    deps:
+      - core
+    services:
+      - services/weekly-clamscan.service
+    timers:
+      - timers/weekly-clamscan.timer
+    notifications:
+      - tag: notify-weekly-scan
+        icon: security-high
+        level: important
+
+  download-clamscan:
+    version: 0.1.0
+    description: "Real-time download scanning (inotifywait)"
+    source: scripts/services/download-clamscan.sh
+    bin_name: download-clamscan
+    deps:
+      - core
+    services:
+      - services/download-clamscan.service.tpl
+    system_deps:
+      - inotify-tools
+    notifications:
+      - tag: notify-download-scan
+        icon: security-medium
+        level: important
+
+  quarantine:
+    version: 0.1.0
+    description: "Manage quarantined files"
+    source: scripts/tools/quarantine.sh
+    bin_name: quarantine
+    deps:
+      - core
+    dirs:
+      - path: /var/quarantine
+        mode: "700"
+
+  usb-clamscan:
+    version: 0.1.0
+    description: "Automatic ClamAV scan on USB insertion"
+    source: scripts/services/usb-clamscan.sh
+    bin_name: usb-clamscan
+    deps:
+      - core
+    hooks:
+      install: scripts/core/install-usb-clamscan.sh
+      uninstall: shared/cleanup-usb-clamscan.sh
+    services:
+      - services/usb-clamscan@.service
+    notifications:
+      - tag: notify-usb-scan
+        icon: drive-removable-media
+        level: all

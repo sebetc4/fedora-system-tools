@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Quick ClamAV Scan
+
+[Timer]
+OnCalendar=daily
+OnCalendar=*-*-* 10:00:00
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

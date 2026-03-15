@@ -1,0 +1,6 @@
+# ShellCheck configuration for fedora-system-tools
+# Allow following relative source paths
+source-path=SCRIPTDIR
+
+# Disable "Can't follow non-constant source" — our scripts source via $LIB_DIR
+disable=SC1091

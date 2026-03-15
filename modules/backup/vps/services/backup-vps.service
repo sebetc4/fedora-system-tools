@@ -1,0 +1,22 @@
+[Unit]
+Description=Pull VPS backups via SSH
+After=gcr-ssh-agent.service
+Wants=gcr-ssh-agent.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/backup-vps
+
+# Suppress stdout to journal — notifications use logger directly (tag: notify-backup-vps)
+StandardOutput=null
+StandardError=journal
+
+# SSH agent: use gcr-ssh-agent socket (Fedora 43+)
+Environment=SSH_AUTH_SOCK=%t/gcr/ssh
+
+# Timeout for slow connections
+TimeoutStartSec=900
+
+# Resource limits
+MemoryMax=500M
+CPUQuota=50%

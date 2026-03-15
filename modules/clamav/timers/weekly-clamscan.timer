@@ -1,0 +1,11 @@
+[Unit]
+Description=Bi-weekly ClamAV Scan
+
+[Timer]
+# Dimanche 12h + Mercredi 12h
+OnCalendar=Sun,Wed 12:00
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

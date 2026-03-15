@@ -1,0 +1,48 @@
+# =============================================================================
+# COLOR.CONF - UI Color Theme Configuration
+# =============================================================================
+# Customize colors for Gum interactive components and terminal output.
+# Values: ANSI color numbers (0-255) or hex colors (#RRGGBB)
+#
+# Loaded by lib/color.sh. Lookup order:
+#   1. ~/.config/system-scripts/color.conf  (user override)
+#   2. /etc/system-scripts/color.conf       (system default)
+#
+# Override: COLOR_CONF=/path/to/color.conf
+# =============================================================================
+
+# --- Theme ---
+
+# Primary accent color (cursors, selections, banners)
+accent=6
+
+# Header decoration — border and text (empty = inherit from accent / terminal default)
+# header_border=6
+# header_text=
+
+# Error accent color (used for error borders)
+error=1
+
+# --- Per-component overrides (optional) ---
+# Uncomment to override the accent color for specific Gum components.
+# Values: ANSI 0-255 or hex #RRGGBB
+#
+# choose_cursor_foreground=212
+# choose_selected_foreground=212
+# input_prompt_foreground=212
+# input_cursor_foreground=212
+# filter_indicator_foreground=212
+# filter_match_foreground=212
+# confirm_selected_foreground=212
+# spin_spinner_foreground=212
+
+# --- Terminal color overrides (optional) ---
+# Override the default C_* terminal colors from core.sh.
+# Values: ANSI escape sequences (e.g. \033[0;31m)
+#
+# term_red=\033[0;31m
+# term_green=\033[0;32m
+# term_yellow=\033[1;33m
+# term_cyan=\033[0;36m
+# term_blue=\033[0;34m
+# term_magenta=\033[0;35m

@@ -1,0 +1,141 @@
+# ============================================================================
+# SYSTEM BACKUP CONFIGURATION
+# ============================================================================
+# Configuration file for backup-system script.
+# Default location: ~/.config/backup/system.yml
+# ============================================================================
+
+# ============================================================================
+# BACKUP SETTINGS
+# ============================================================================
+backup:
+  # External backup HDD (already mounted automatically)
+  hdd_mount: /media/backup-hdd
+  backup_root: /media/backup-hdd/backups
+
+# ============================================================================
+# PATHS TO BACKUP
+# ============================================================================
+# Each path entry defines a source to backup via rsync.
+# Fields:
+#   name        - Identifier (used in logs)
+#   source      - Absolute path to backup
+#   dest_subdir - Subdirectory name under backup_root
+#   enabled     - true/false to include in backup
+#   btrfs_snapshot - (optional) Create temporary read-only snapshot before
+#                    rsync for consistency (requires BTRFS source)
+#   exclusions  - (optional) Rsync exclude patterns for this path
+paths:
+  - name: system
+    source: /
+    dest_subdir: root
+    enabled: true
+    btrfs_snapshot: true
+    exclusions:
+      - /dev/*
+      - /proc/*
+      - /sys/*
+      - /tmp/*
+      - /run/*
+      - /mnt/*
+      - /media/*
+      - /lost+found
+      - /home/*
+      - .snapshots
+      - /var/tmp/*
+      - /var/cache/*
+      - /var/log/journal/*
+      - /var/lib/systemd/coredump/*
+      - /var/lib/docker/*
+      - /var/lib/containers/*
+      - /var/lib/flatpak/repo/*
+      - swapfile
+      - "*.swp"
+      - "*.lock"
+      - .nfs*
+
+  - name: home
+    source: /home
+    dest_subdir: home
+    enabled: true
+    exclusions:
+      - lost+found
+      - .cache
+      - .local/share/Trash
+      - .thumbnails
+      - .snapshots
+      - Downloads
+      - .mozilla/firefox/*/cache2
+      - .mozilla/firefox/*/storage/default/*/cache
+      - .config/google-chrome/*/Cache
+      - .config/chromium/*/Cache
+      - .var/app/*/cache
+      - .local/share/baloo
+      - .local/share/akonadi
+      - .local/share/gvfs-metadata
+      - "*.tmp"
+      - "*.swp"
+      - .nfs*
+
+# ============================================================================
+# HOOKS
+# ============================================================================
+# Hooks are standalone scripts executed before or after the rsync backup.
+# Each hook manages its own configuration internally (no config path passed).
+#
+# Fields:
+#   name         - Identifier (used in logs and confirmation prompt)
+#   script       - Absolute path to the hook script
+#   enabled      - true/false to activate this hook
+#   confirm      - true/false to prompt ui_confirm before running (skipped with --yes)
+#   run_as_user  - true/false to drop privileges to the invoking user (optional,
+#                  for hooks that don't need root and use user-installed commands)
+#
+# Execution order follows declaration order.
+# A failing hook logs a warning but does NOT stop the backup.
+#
+# Hook configuration locations:
+#   btrfs-save-structure → ~/.config/backup/hooks/btrfs-save-structure.yml
+#   btrfs-snapshot       → ~/.config/backup/hooks/btrfs-snapshot.yml
+#   bitwarden            → ~/.config/backup/bitwarden.yml
+hooks:
+  pre_backup:
+    - name: btrfs-save-structure
+      script: /usr/local/lib/system-scripts/hooks.d/pre-backup/btrfs-save-structure.sh
+      enabled: true
+      confirm: true
+
+    - name: btrfs-snapshot
+      script: /usr/local/lib/system-scripts/hooks.d/pre-backup/btrfs-snapshot.sh
+      enabled: true
+      confirm: true
+
+  post_backup:
+    - name: bitwarden
+      script: /usr/local/bin/backup-bitwarden
+      enabled: false
+      confirm: true
+      run_as_user: true
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  # Log file path (rotation managed by logrotate, see /etc/logrotate.d/backup-scripts)
+  file: /var/log/backup/backup-system.log
+
+# ============================================================================
+# ADVANCED OPTIONS
+# ============================================================================
+advanced:
+  # Rsync options
+  # Note: --no-xattrs avoids SELinux attribute errors on non-SELinux filesystems
+  # --partial keeps partially transferred files for resumability
+  # --timeout=300 prevents hanging on unresponsive files
+  rsync_options: "-aAXHv --info=progress2 --no-xattrs --partial --timeout=300"
+
+  # Enable scrub (activate with --scrub)
+  enable_scrub: false
+
+  # Enable stats (activate with --stats)
+  enable_stats: false

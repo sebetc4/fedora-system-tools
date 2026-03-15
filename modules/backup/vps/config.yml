@@ -1,0 +1,60 @@
+# ============================================================================
+# BACKUP VPS CONFIGURATION
+# ============================================================================
+# Configuration file for backup-vps script
+# Default location: ~/.config/backup/vps.yml
+# ============================================================================
+
+# ============================================================================
+# SSH CONNECTION
+# ============================================================================
+connection:
+  # SSH alias (from ~/.ssh/config)
+  ssh_host: "my-vps"
+
+  # Remote backup directory on VPS (where vps-backup stores archives)
+  remote_backup_dir: "/root/backups"
+
+# ============================================================================
+# LOCAL STORAGE
+# ============================================================================
+storage:
+  # Local destination for pulled backups
+  local_backup_dir: "~/.backups/vps"
+
+# ============================================================================
+# GFS RETENTION (Grandfather-Father-Son)
+# ============================================================================
+retention:
+  # Keep last N daily backups
+  keep_daily: 7
+
+  # Keep one per week for N weeks
+  keep_weekly: 4
+
+  # Keep one per month for N months
+  keep_monthly: 6
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  # Log file path (rotation managed by logrotate, see ~/.config/logrotate/)
+  file: "~/.local/log/backup-vps/backup-vps.log"
+
+# ============================================================================
+# NOTIFICATIONS
+# ============================================================================
+# Uses notify-daemon via logger (tag: backup-vps)
+# Requires: Registered by install.sh
+notifications:
+  enabled: true
+  on_success: true
+  on_error: true
+
+# ============================================================================
+# ADVANCED OPTIONS
+# ============================================================================
+advanced:
+  # Rsync options for pull
+  rsync_options: "-avz --partial --timeout=300"

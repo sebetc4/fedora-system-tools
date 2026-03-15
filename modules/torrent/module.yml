@@ -1,0 +1,18 @@
+# modules/torrent/module.yml
+name: torrent
+version: 0.1.0
+min_lib_version: 0.1.0
+description: "VPN + qBittorrent container stack"
+type: system
+standalone: true
+module_deps: []
+
+scripts:
+  torrent:
+    description: "Main CLI — manage container lifecycle, downloads & security"
+  torrent-container:
+    description: "Interactive container setup (Gluetun + qBittorrent, VPN config)"
+  torrent-list:
+    description: "List torrent downloads with scan status"
+  torrent-move:
+    description: "Move downloads to user folder (permissions + SELinux fix)"

@@ -1,0 +1,73 @@
+# Template for module.yml — Source of truth for module metadata
+#
+# This file declares all submodules (installable scripts) within a module.
+# It is parsed by lib/submodule.sh (yq) and used by install.sh, setup.sh,
+# and the Makefile to discover, install, and manage scripts.
+#
+# Place this file at: modules/<module>/module.yml
+
+name: module-name
+version: 0.1.0
+min_lib_version: 0.1.0  # Minimum lib version required — checked at install time
+description: "Short description of the module"
+type: system  # system (root) or user (no root)
+# standalone: true  # Uncomment for single-script modules (no submodules)
+
+# Inter-module dependencies (optional)
+# module_deps:
+#   - clamav
+
+# Submodules — each is an independently installable unit
+#
+# Core submodule pattern: modules with shared infrastructure (logrotate,
+# log dirs, setup scripts) declare a "core" submodule. Other submodules
+# use deps: [core] to auto-install it first. On uninstall, deps protection
+# ensures core is removed last.
+#
+# submodules:
+#   core:
+#     version: 0.1.0
+#     description: "Shared setup for this module"
+#     hooks:
+#       install: shared/setup.sh         # Run on install
+#       uninstall: shared/cleanup.sh     # Run on uninstall
+#     logrotate: logrotate/name          # Logrotate config to install
+#     dirs:
+#       - path: /var/log/module
+#         mode: "755"
+#
+#   script-name:
+#     version: 0.1.0
+#     description: "What this script does"
+#     source: scripts/script.sh          # Single script
+#     bin_name: command-name             # Installed command name
+#     deps: []                           # Intra-module submodule deps (optional)
+#     #   - core                         # Auto-installed before this submodule
+#     # --- or multi-script submodule ---
+#     # source:
+#     #   - scripts/main.sh:main-cmd
+#     #   - scripts/helper.sh:helper-cmd
+#     services: []                       # systemd service files (optional)
+#     timers: []                         # systemd timer files (optional)
+#     configs: []                        # Config files to install (optional)
+#     #   - source: config.yml
+#     #     dest: ~/.config/app/config.yml
+#     #     no_overwrite: true
+#     required_commands: []              # Commands that must be pre-installed (optional)
+#     #   - bw                           # Simple form (name only)
+#     #   - name: bw                     # Object form (with install hint)
+#     #     install_hint: "npm install -g @bitwarden/cli"
+#     system_deps: []                    # dnf packages to auto-install (optional)
+#     notifications: []                  # notify-daemon tags (optional)
+#     #   - tag: notify-service-name    # Use notify- prefix to avoid systemd tag collision
+#     #     icon: icon-name    #     level: all                  # Default notification level: all | important | none
+    #                                 # Written to levels.conf only if not already set
+    #                                 # (preserves user customizations via notify-manage level)#     deps: []                           # Intra-module submodule deps (optional)
+#     #   - core                         # Auto-installed before this submodule
+#     dirs: []                           # Directories to create (optional)
+#     #   - path: /var/data
+#     #     mode: "700"
+#     logrotate: logrotate/name          # Logrotate config to install (optional)
+#     hooks:                             # Custom hooks (optional)
+#       install: scripts/custom-install.sh
+#       uninstall: scripts/custom-cleanup.sh

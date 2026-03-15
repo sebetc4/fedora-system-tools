@@ -1,0 +1,123 @@
+# modules/backup/module.yml
+name: backup
+version: 0.1.0
+min_lib_version: 0.1.0
+description: "Backup scripts (system, HDD, Bitwarden, VPS)"
+type: system
+
+submodules:
+  core:
+    version: 0.1.0
+    description: "Backup shared setup (log directory, logrotate)"
+    logrotate: logrotate/backup-scripts
+    dirs:
+      - path: /var/log/backup
+        mode: "755"
+
+  system:
+    version: 0.1.0
+    description: "System backup with rsync + hooks"
+    source: system/backup.sh
+    bin_name: backup-system
+    deps:
+      - core
+    configs:
+      - source: system/config.yml
+        dest: ~/.config/backup/system.yml
+        no_overwrite: true
+    hooks:
+      install: system/hooks.d
+      hooks_config: system/hooks-config
+    system_deps:
+      - yq
+      - rsync
+    notifications:
+      - tag: notify-backup-system
+        icon: drive-harddisk
+        level: important
+
+  hdd:
+    version: 0.1.0
+    description: "Simple HDD to HDD mirror backup"
+    source: hdd-to-hdd/backup.sh
+    bin_name: backup-hdd
+    deps:
+      - core
+    configs:
+      - source: hdd-to-hdd/config.yml
+        dest: ~/.config/backup/hdd.yml
+        no_overwrite: true
+    system_deps:
+      - yq
+    notifications:
+      - tag: notify-backup-hdd
+        icon: drive-harddisk
+        level: important
+
+  hdd-both:
+    version: 0.1.0
+    description: "Split backup across two drives"
+    source: hdd-to-both-hdd/backup.sh
+    bin_name: backup-hdd-both
+    deps:
+      - core
+    configs:
+      - source: hdd-to-both-hdd/config.yml
+        dest: ~/.config/backup/hdd-both.yml
+        no_overwrite: true
+    system_deps:
+      - yq
+    notifications:
+      - tag: notify-backup-hdd-both
+        icon: drive-harddisk
+        level: important
+
+  bitwarden:
+    version: 0.1.0
+    description: "Bitwarden vault backup"
+    source: bitwarden/backup-bitwarden.sh
+    bin_name: backup-bitwarden
+    deps:
+      - core
+    logrotate: bitwarden/logrotate/user-logs.tpl
+    configs:
+      - source: bitwarden/config.yml
+        dest: ~/.config/backup/bitwarden.yml
+        no_overwrite: true
+    required_commands:
+      - name: bw
+        install_hint: "npm install -g @bitwarden/cli"
+    system_deps:
+      - age
+      - jq
+
+  vps:
+    version: 0.1.0
+    type: user
+    description: "VPS backup with GFS rotation (user-level)"
+    source: vps/backup-vps.sh
+    bin_name: backup-vps
+    hooks:
+      install: vps/hooks/install-vps.sh
+      uninstall: vps/hooks/cleanup-vps.sh
+    services:
+      - vps/services/backup-vps.service
+    timers:
+      - vps/timers/backup-vps.timer
+    dirs:
+      - path: ~/.local/log/backup-vps
+        mode: "755"
+    configs:
+      - source: vps/config.yml
+        dest: ~/.config/backup/vps.yml
+        no_overwrite: true
+    required_commands:
+      - name: ssh
+        install_hint: "sudo dnf install openssh-clients"
+    system_deps:
+      - yq
+      - rsync
+    notifications:
+      - tag: notify-backup-vps
+        icon: drive-harddisk
+        level: all

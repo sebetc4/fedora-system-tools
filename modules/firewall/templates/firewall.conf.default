@@ -1,0 +1,29 @@
+# =============================================================================
+# FIREWALL.CONF - Firewall hardening configuration
+# =============================================================================
+# Source of truth for firewall-harden. Edit with: sudo firewall-harden
+# Applied with: sudo firewall-harden apply
+#
+# Format: shell-sourceable (bash arrays + variables)
+# Location: /etc/system-scripts/firewall.conf
+# =============================================================================
+
+# Zone — set to change the default zone (leave empty to keep current)
+# Common choices: public, FedoraWorkstation, home, drop
+FIREWALL_ZONE=""
+
+# Services to REMOVE from the active zone (space-separated)
+REMOVE_SERVICES=(ssh samba-client mdns)
+
+# Services to explicitly ALLOW in the active zone (space-separated)
+ALLOW_SERVICES=(dhcpv6-client)
+
+# Ports to OPEN (format: port/proto or port-range/proto)
+# Example: ALLOW_PORTS=(1714-1764/tcp 1714-1764/udp 22000/tcp)
+ALLOW_PORTS=()
+
+# Ports to CLOSE (mainly for FedoraWorkstation permissive range)
+CLOSE_PORTS=(1025-65535/tcp 1025-65535/udp)
+
+# Log denied packets: all | unicast | broadcast | multicast | off
+LOG_DENIED="off"

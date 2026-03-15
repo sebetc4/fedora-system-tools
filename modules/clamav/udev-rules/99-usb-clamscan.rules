@@ -1,0 +1,25 @@
+# =============================================================================
+# USB-CLAMSCAN - Auto-scanning udev rule
+# =============================================================================
+# Triggers USB ClamAV scanning when removable storage is inserted.
+# GNOME handles mounting natively — the scanner waits for mount, then scans.
+#
+# Installation:
+#   sudo install -m 644 99-usb-clamscan.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules
+#
+# Testing:
+#   Insert USB drive and check: journalctl -f | grep usb-clamscan
+# =============================================================================
+
+# --- Rule 1: Direct USB storage ---
+# Matches: USB flash drives, external HDDs with native USB interface
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{DEVTYPE}=="partition", \
+    ENV{ID_FS_USAGE}=="filesystem", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-clamscan@%k.service"
+
+# --- Rule 2: USB-to-SATA/NVMe bridges ---
+# Matches: External drives via USB enclosures (SATA/NVMe-to-USB adapters)
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_PATH}=="*-usb-*", ENV{DEVTYPE}=="partition", \
+    ENV{ID_FS_USAGE}=="filesystem", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}="usb-clamscan@%k.service"

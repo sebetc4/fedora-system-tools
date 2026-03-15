@@ -1,0 +1,11 @@
+# modules/firewall/module.yml
+name: firewall
+version: 0.1.0
+min_lib_version: 0.1.0
+description: "Firewall configuration (firewalld)"
+type: system
+standalone: true
+
+scripts:
+  firewall-harden:
+    description: "Interactive firewall wizard (status, apply, restore, dry-run)"

@@ -1,0 +1,29 @@
+# ============================================================================
+# BITWARDEN BACKUP CONFIGURATION
+# ============================================================================
+# Standalone script configuration (also callable via hooks)
+# Default location: ~/.config/backup/bitwarden.yml
+# ============================================================================
+
+# Bitwarden vault backup settings
+bitwarden:
+  # Path to age-encrypted API key file
+  # Create with: age -p -o <path> bw-api-key.json && shred -u bw-api-key.json
+  api_key_path: ~/.secrets/bw-api-key.age
+
+  # Backup destination directory
+  backup_path: /media/backup-hdd/backups/bitwarden
+
+  # Number of backup versions to keep (oldest deleted first)
+  retention: 3
+
+  # Export mode: both | age_json | encrypted_json
+  #   both           - JSON encrypted with age + Bitwarden encrypted export (default)
+  #   age_json       - Only JSON export encrypted with age
+  #   encrypted_json - Only Bitwarden native encrypted export
+  export_mode: both
+
+# Logging (default: ~/.local/log/backup-bitwarden/backup-bitwarden.log)
+# Uncomment to override:
+# logging:
+#   file: /custom/path/backup-bitwarden.log

@@ -1,0 +1,98 @@
+# ============================================================================
+# HDD BACKUP CONFIGURATION
+# ============================================================================
+# Simple 1:1 backup from source HDD to backup HDD
+# Default location: ~/.config/backup/hdd.yml
+# ============================================================================
+
+# ============================================================================
+# SOURCE DRIVE (active storage)
+# ============================================================================
+source:
+  path: /mnt/storage
+  label: "Storage (2TB)"
+
+# ============================================================================
+# BACKUP DRIVE (cold storage mirror)
+# ============================================================================
+backup:
+  path: /mnt/backup
+  label: "Backup (2TB)"
+
+# ============================================================================
+# DIRECTORIES TO BACKUP
+# ============================================================================
+# Directories to backup (relative to source path)
+# Use "/" or leave empty to backup entire drive
+directories:
+  - /  # Entire drive
+
+# Directories to exclude from backup
+exclude:
+  - ".Trash-*"
+  - "lost+found"
+  - ".snapshots"
+
+# ============================================================================
+# SNAPSHOT OPTIONS (Optional)
+# ============================================================================
+# BTRFS snapshots of source drive before backup
+snapshots:
+  # Enable/disable snapshots before backup
+  enabled: false
+
+  # Where to store snapshots (relative to source path)
+  directory: ".snapshots"
+
+  # Number of snapshots to keep (older ones auto-deleted)
+  retention: 3
+
+  # Snapshot naming format (date will be appended)
+  prefix: "backup"
+
+# ============================================================================
+# RSYNC OPTIONS
+# ============================================================================
+rsync:
+  # Delete files in destination not present in source
+  delete: true
+
+  # Show progress during transfer
+  progress: true
+
+  # Compress during transfer (not needed for local backup)
+  compress: false
+
+  # Preserve all attributes
+  archive: true
+
+# ============================================================================
+# BTRFS OPTIONS
+# ============================================================================
+btrfs:
+  # Run scrub after backup (integrity check)
+  scrub_after_backup: false
+
+  # Show compression statistics after backup
+  show_compression_stats: false
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  # Log file path (rotation managed by logrotate, see /etc/logrotate.d/backup-scripts)
+  # Leave empty for console-only output
+  file: /var/log/backup/backup-hdd.log
+
+# ============================================================================
+# SAFETY OPTIONS
+# ============================================================================
+safety:
+  # Require confirmation before starting backup
+  confirm_before_start: true
+
+  # Check disk space before backup
+  check_disk_space: true
+
+  # Dry run mode (simulate without making changes)
+  dry_run: false

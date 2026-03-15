@@ -1,0 +1,45 @@
+# ============================================================================
+# BTRFS SAVE-STRUCTURE HOOK CONFIGURATION
+# ============================================================================
+# Pre-backup hook: saves BTRFS subvolume structure, fstab, attributes,
+# and generates a recreation script for disaster recovery.
+#
+# Default location: ~/.config/backup/hooks/btrfs-save-structure.yml
+# ============================================================================
+
+# Where to save BTRFS structure documentation (relative to backup_root)
+output_dir: btrfs-structure
+
+# ============================================================================
+# ATTRIBUTE PATHS
+# ============================================================================
+# Paths to document BTRFS attributes for (lsattr).
+# Should match your BTRFS subvolumes.
+attribute_paths:
+  - /
+  - /home
+
+# ============================================================================
+# SUBVOLUMES
+# ============================================================================
+# Subvolumes to include in the auto-generated recreation script.
+# The script is saved to <output_dir>/recreate-subvolumes.sh.
+#
+# Fields:
+#   name   - Subvolume name (used in script)
+#   path   - Mount point
+#   chattr - (optional) File attributes to set (e.g., "+C" for nodatacow)
+subvolumes:
+  - name: root
+    path: /
+  - name: home
+    path: /home
+
+# ============================================================================
+# ADDITIONAL DISKS
+# ============================================================================
+# Disks that are NOT backed up but should be documented for reference.
+# The hook saves mount info, UUID, size, and restoration instructions.
+# additional_disks:
+#   - mount_point: /mnt/extra
+#     description: "Extra data disk"

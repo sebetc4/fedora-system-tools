@@ -1,0 +1,9 @@
+[Unit]
+Description=Weekly ClamAV Scan
+After=network.target clamav-freshclam.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/weekly-clamscan
+Nice=19
+IOSchedulingClass=idle

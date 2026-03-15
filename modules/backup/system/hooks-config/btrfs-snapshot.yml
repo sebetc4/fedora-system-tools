@@ -1,0 +1,19 @@
+# ============================================================================
+# BTRFS SNAPSHOT HOOK CONFIGURATION
+# ============================================================================
+# Post-backup hook: creates versioned read-only snapshots of the backup
+# destination for point-in-time recovery.
+#
+# Requires backup_root to be a BTRFS subvolume.
+#
+# Default location: ~/.config/backup/hooks/btrfs-snapshot.yml
+# ============================================================================
+
+# Where to store snapshots (absolute path)
+directory: /media/backup-hdd/snapshots
+
+# Number of snapshots to keep (oldest are deleted first)
+retention: 4
+
+# Snapshot name prefix (snapshots are named: <prefix>-YYYY-MM-DD_HH-MM-SS)
+prefix: backup

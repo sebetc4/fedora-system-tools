@@ -1,0 +1,13 @@
+# modules/notifications/module.yml
+name: notifications
+version: 0.1.0
+min_lib_version: 0.1.0
+description: "Desktop notification daemon (journald monitor)"
+type: user
+standalone: true
+
+scripts:
+  notify-daemon:
+    description: "Systemd user service — journald to desktop notifications"
+  notify-manage:
+    description: "Manage monitored services (list, add, remove, level, test)"

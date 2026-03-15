@@ -1,0 +1,21 @@
+# Logs
+*.log
+
+# Editor/OS artifacts
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test output
+test-output/
+
+# Private config overrides
+my-config/
+
+# IDE
+.claude
+CLAUDE.md
+
+roadmap

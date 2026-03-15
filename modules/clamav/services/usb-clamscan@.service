@@ -1,0 +1,21 @@
+[Unit]
+Description=USB ClamAV scan on %I
+After=local-fs.target graphical.target
+Wants=graphical.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/usb-clamscan /dev/%I
+RemainAfterExit=no
+
+# Security
+NoNewPrivileges=false
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=usb-clamscan
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,57 @@
+# =============================================================================
+# CLAMAV.CONF - ClamAV daemon configuration
+# =============================================================================
+# Source of truth for clamd scan.conf generation.
+# Applied with: sudo configure-clamav.sh (or during install)
+#
+# Format: shell-sourceable (bash arrays + variables)
+# Location: /etc/system-scripts/clamav.conf
+# =============================================================================
+
+# ===================
+# Detection profile
+# ===================
+# standard — balanced detection, low false positives (recommended for daily use)
+# paranoid — maximum detection, more false positives (for scanning suspect files)
+# minimal  — signatures only, near-zero false positives
+#
+# Individual options below can override profile defaults (leave empty = use profile)
+SCAN_PROFILE="standard"
+
+# ===================
+# Detection overrides (empty = use profile default)
+# ===================
+DETECT_PUA=""
+EXCLUDE_PUA=()
+HEURISTIC_SCAN_PRECEDENCE=""
+ALERT_ENCRYPTED=""
+ALERT_ENCRYPTED_ARCHIVE=""
+ALERT_ENCRYPTED_DOC=""
+ALERT_OLE2_MACROS=""
+ALERT_PHISHING_SSL=""
+ALERT_PHISHING_CLOAK=""
+ALERT_EXCEEDS_MAX=""
+
+# ===================
+# Performance
+# ===================
+# auto = CPU cores / 2 (min 4, max 16)
+MAX_THREADS="auto"
+MAX_QUEUE="200"
+IDLE_TIMEOUT="30"
+CONCURRENT_DB_RELOAD="yes"
+
+# ===================
+# Scan limits
+# ===================
+MAX_SCAN_SIZE="400M"
+MAX_FILE_SIZE="100M"
+MAX_RECURSION="20"
+MAX_FILES="15000"
+MAX_DIRECTORY_RECURSION="20"
+
+# ===================
+# Logging
+# ===================
+LOG_FILE="/var/log/clamav/clamd.log"
+LOG_FILE_MAX_SIZE="50M"

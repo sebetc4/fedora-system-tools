@@ -1,0 +1,11 @@
+# modules/nautilus/module.yml
+name: nautilus
+version: 0.1.0
+min_lib_version: 0.1.0
+description: "Nautilus bookmark & symlink manager"
+type: system
+standalone: true
+
+scripts:
+  bookmark-manager:
+    description: "Manage Nautilus bookmarks & symlinks (interactive + CLI)"

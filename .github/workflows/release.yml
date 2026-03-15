@@ -1,0 +1,61 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'       # Project-level release (v0.1.0)
+      - '*-v*'     # Module-level release (clamav-v0.2.0)
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+
+          # Project-level tag: v0.1.0 (no module prefix)
+          if [[ "$TAG" =~ ^v[0-9] ]]; then
+            echo "type=project" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          else
+            # Module-level tag: clamav-v0.2.0
+            echo "type=module" >> "$GITHUB_OUTPUT"
+            MODULE="${TAG%-v*}"
+            VERSION="${TAG#*-v}"
+            echo "module=$MODULE" >> "$GITHUB_OUTPUT"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build project tarball
+        if: steps.tag.outputs.type == 'project'
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          tar czf "fedora-system-tools-${VERSION}.tar.gz" \
+            --transform "s,^,fedora-system-tools-${VERSION}/," \
+            VERSION lib/ modules/ templates/color.conf.default setup.sh Makefile
+
+      - name: Build module tarball
+        if: steps.tag.outputs.type == 'module'
+        run: |
+          MODULE="${{ steps.tag.outputs.module }}"
+          VERSION="${{ steps.tag.outputs.version }}"
+
+          if [ "$MODULE" = "lib" ]; then
+            tar czf "${MODULE}-${VERSION}.tar.gz" lib/ Makefile
+          else
+            tar czf "${MODULE}-${VERSION}.tar.gz" lib/ "modules/${MODULE}/" Makefile setup.sh
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.tar.gz'
+          generate_release_notes: true

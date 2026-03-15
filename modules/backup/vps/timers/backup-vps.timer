@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily VPS backup pull
+
+[Timer]
+OnCalendar=*-*-* 16:00:00
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target
