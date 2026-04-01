@@ -205,40 +205,49 @@ ui_file() {
 # Usage: result=$(echo -e "item1\nitem2\nitem3" | ui_filter)
 # Usage: result=$(ui_filter --header "Search:" "item1" "item2" "item3")
 ui_filter() {
+    # Separate gum flags from items
+    local gum_opts=() items=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --header|--placeholder|--prompt|--width|--height) gum_opts+=("$1" "$2"); shift 2 ;;
+            --*) gum_opts+=("$1"); shift ;;
+            *) items+=("$1"); shift ;;
+        esac
+    done
+
     if has_gum; then
-        if [[ $# -gt 0 ]]; then
-            # Args passed directly
-            printf '%s\n' "$@" | gum filter
+        if [[ ${#items[@]} -gt 0 ]]; then
+            # Items from args, flags forwarded to gum
+            printf '%s\n' "${items[@]}" | gum filter "${gum_opts[@]}"
         else
-            # Stdin (pipe)
-            gum filter
+            # Items from stdin, flags forwarded to gum
+            gum filter "${gum_opts[@]}"
         fi
     else
-        if [[ $# -gt 0 ]]; then
-            # Strip Gum flags
-            local items=()
-            while [[ $# -gt 0 ]]; do
-                case "$1" in
-                    --header|--placeholder|--prompt|--width|--height) shift 2 ;;
-                    --*) shift ;;
-                    *) items+=("$1"); shift ;;
-                esac
-            done
+        # Fallback: header as prompt label if provided
+        local header=""
+        local i=0
+        while [[ $i -lt ${#gum_opts[@]} ]]; do
+            if [[ "${gum_opts[$i]}" == "--header" ]]; then
+                header="${gum_opts[$((i+1))]}"
+            fi
+            (( i += 2 ))
+        done
+        local prompt="${header:-Filter}: "
+
+        if [[ ${#items[@]} -gt 0 ]]; then
             local search
-            read -r -p "Filter: " search >&2
+            read -r -p "$prompt" search >&2
             if [[ -n "$search" ]]; then
                 printf '%s\n' "${items[@]}" | grep -i "$search" | head -1
             else
                 echo "${items[0]}"
             fi
         else
-            # Stdin
             local lines=()
-            while IFS= read -r line; do
-                lines+=("$line")
-            done
+            while IFS= read -r line; do lines+=("$line"); done
             local search
-            read -r -p "Filter: " search >&2
+            read -r -p "$prompt" search >&2
             if [[ -n "$search" ]]; then
                 printf '%s\n' "${lines[@]}" | grep -i "$search" | head -1
             else

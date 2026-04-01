@@ -610,50 +610,68 @@ show_status() {
             fi
         else
             # Module with submodules — table
-            local submodules=()
+            local submodules=() hooks_subs=()
             if command -v yq &>/dev/null && [[ -f "$module_yml" ]]; then
-                mapfile -t submodules < <(yq -r '.submodules | keys | .[]' "$module_yml" 2>/dev/null)
+                mapfile -t submodules < <(
+                    yq -r '.submodules | to_entries | map(select(.value.kind != "hook")) | .[].key' \
+                        "$module_yml" 2>/dev/null)
+                mapfile -t hooks_subs < <(
+                    yq -r '.submodules | to_entries | map(select(.value.kind == "hook")) | .[].key' \
+                        "$module_yml" 2>/dev/null)
             fi
+
+            # Helper: print one submodule row
+            _print_sub_row() {
+                local sub="$1"
+                local sub_iver sub_aver sub_status sub_color
+                sub_iver="$(_get_submodule_installed_version "$module" "$sub")"
+                if command -v yq &>/dev/null; then
+                    sub_aver=$(yq -r ".submodules.\"$sub\".version // \"?\"" "$module_yml")
+                else
+                    sub_aver="?"
+                fi
+                if [[ -n "$sub_iver" ]]; then
+                    local cmp
+                    cmp="$(_version_compare "$sub_iver" "${sub_aver:-0.0.0}")"
+                    if [[ "$cmp" == "lt" ]]; then
+                        sub_status="update available"
+                        sub_color="$C_YELLOW"
+                    else
+                        sub_status="✓"
+                        sub_color="$C_GREEN"
+                    fi
+                    printf "    ${sub_color}%-20s %-12s %-12s %s${C_NC}\n" \
+                        "$sub" "v$sub_iver" "v$sub_aver" "$sub_status"
+                else
+                    printf "    ${C_DIM}%-20s %-12s %-12s %s${C_NC}\n" \
+                        "$sub" "--" "v$sub_aver" ""
+                fi
+            }
 
             if [[ ${#submodules[@]} -gt 0 ]]; then
                 printf "    ${C_BOLD}%-20s %-12s %-12s %s${C_NC}\n" "SUB-MODULE" "INSTALLED" "AVAILABLE" "STATUS"
                 for sub in "${submodules[@]}"; do
-                    local sub_iver sub_aver sub_status sub_color
-                    sub_iver="$(_get_submodule_installed_version "$module" "$sub")"
-
-                    if command -v yq &>/dev/null; then
-                        sub_aver=$(yq -r ".submodules.\"$sub\".version // \"?\"" "$module_yml")
-                    else
-                        sub_aver="?"
-                    fi
-
-                    if [[ -n "$sub_iver" ]]; then
-                        local cmp
-                        cmp="$(_version_compare "$sub_iver" "${sub_aver:-0.0.0}")"
-                        if [[ "$cmp" == "lt" ]]; then
-                            sub_status="update available"
-                            sub_color="$C_YELLOW"
-                        else
-                            sub_status="✓"
-                            sub_color="$C_GREEN"
-                        fi
-                        printf "    ${sub_color}%-20s %-12s %-12s %s${C_NC}\n" "$sub" "v$sub_iver" "v$sub_aver" "$sub_status"
-                    else
-                        printf "    ${C_DIM}%-20s %-12s %-12s %s${C_NC}\n" "$sub" "--" "v$sub_aver" ""
-                    fi
+                    _print_sub_row "$sub"
                 done
             else
                 # Fallback for modules without submodules
                 local iver aver
                 iver="$(get_module_installed_version "$module")"
                 aver="$(get_available_version "$module")"
-                
                 printf "    ${C_BOLD}%-20s %-12s %-12s %s${C_NC}\n" "SUB-MODULE" "INSTALLED" "AVAILABLE" "STATUS"
                 if [[ -n "$iver" ]]; then
                     printf "    ${C_GREEN}%-20s %-12s %-12s %s${C_NC}\n" "(all)" "v$iver" "v${aver:-?}" "✓"
                 else
                     printf "    ${C_DIM}%-20s %-12s %-12s %s${C_NC}\n" "(all)" "--" "v${aver:-?}" ""
                 fi
+            fi
+
+            if [[ ${#hooks_subs[@]} -gt 0 ]]; then
+                echo ""
+                printf "    ${C_BOLD}%-20s %-12s %-12s %s${C_NC}\n" "HOOKS" "INSTALLED" "AVAILABLE" "STATUS"
+                for sub in "${hooks_subs[@]}"; do
+                    _print_sub_row "$sub"
+                done
             fi
         fi
         echo ""

@@ -19,13 +19,13 @@
 
 .PHONY: install install-lib install-clamav install-torrent \
         install-notifications install-nautilus install-firewall \
-        install-backup \
+        install-backup install-build-kernel \
         uninstall-clamav uninstall-torrent \
         uninstall-notifications uninstall-nautilus \
-        uninstall-firewall uninstall-backup \
+        uninstall-firewall uninstall-backup uninstall-build-kernel \
         reinstall-clamav reinstall-torrent \
         reinstall-notifications reinstall-nautilus \
-        reinstall-firewall reinstall-backup \
+        reinstall-firewall reinstall-backup reinstall-build-kernel \
         list upgrade shellcheck lint help
 
 # ===================
@@ -72,6 +72,9 @@ install-firewall: install-lib
 install-backup: install-lib
 	sudo ./modules/backup/install.sh --all
 
+install-build-kernel: install-lib
+	sudo ./modules/build-kernel/install.sh --all
+
 # ===================
 # Submodule-level install (pattern rules)
 # ===================
@@ -80,6 +83,9 @@ install-clamav-%: install-lib
 
 install-backup-%: install-lib
 	sudo ./modules/backup/install.sh --only $*
+
+install-build-kernel-%: install-lib
+	sudo ./modules/build-kernel/install.sh --only $*
 
 # ===================
 # Module-level uninstall (all submodules)
@@ -102,6 +108,9 @@ uninstall-firewall:
 uninstall-backup:
 	sudo ./modules/backup/uninstall.sh --all
 
+uninstall-build-kernel:
+	sudo ./modules/build-kernel/uninstall.sh --all
+
 # ===================
 # Submodule-level uninstall (pattern rules)
 # ===================
@@ -110,6 +119,9 @@ uninstall-clamav-%:
 
 uninstall-backup-%:
 	sudo ./modules/backup/uninstall.sh --only $*
+
+uninstall-build-kernel-%:
+	sudo ./modules/build-kernel/uninstall.sh --only $*
 
 # ===================
 # Module-level reinstall (force reinstall all submodules)
@@ -132,6 +144,9 @@ reinstall-firewall: install-lib
 reinstall-backup: install-lib
 	sudo ./modules/backup/install.sh --force --all
 
+reinstall-build-kernel: install-lib
+	sudo ./modules/build-kernel/install.sh --force --all
+
 # ===================
 # Submodule-level reinstall (pattern rules)
 # ===================
@@ -140,6 +155,9 @@ reinstall-clamav-%: install-lib
 
 reinstall-backup-%: install-lib
 	sudo ./modules/backup/install.sh --force --only $*
+
+reinstall-build-kernel-%: install-lib
+	sudo ./modules/build-kernel/install.sh --force --only $*
 
 # ===================
 # Version management
@@ -173,6 +191,12 @@ shellcheck:
 		modules/backup/bitwarden/backup-bitwarden.sh \
 		modules/backup/vps/backup-vps.sh \
 		modules/backup/vps/hooks/*.sh \
+		modules/build-kernel/scripts/build-kernel.sh \
+		modules/build-kernel/scripts/lib/*.sh \
+		modules/build-kernel/hooks/aw88399/aw88399.sh \
+		modules/build-kernel/hooks/aw88399/lib/*.sh \
+		modules/build-kernel/shared/*.sh \
+		modules/build-kernel/install.sh modules/build-kernel/uninstall.sh \
 		setup.sh
 	@echo "ShellCheck passed"
 
@@ -199,7 +223,7 @@ help:
 	@echo "  shellcheck                 Run ShellCheck on all scripts"
 	@echo "  help                       Show this help"
 	@echo ""
-	@echo "Modules: notifications, clamav, torrent, nautilus, firewall, backup"
+	@echo "Modules: notifications, clamav, torrent, nautilus, firewall, backup, build-kernel"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install-clamav              # All clamav submodules"

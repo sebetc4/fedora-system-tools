@@ -1,0 +1,8 @@
+/var/log/build-kernel/*.log {
+    monthly
+    rotate 6
+    compress
+    missingok
+    notifempty
+    create 0644 root root
+}

@@ -1,0 +1,34 @@
+name: build-kernel
+version: 0.1.0
+min_lib_version: 0.1.1
+description: "Custom Fedora kernel builder with pre-build hook support"
+type: system
+standalone: false
+module_deps: []
+
+submodules:
+  build-kernel:
+    version: 0.1.0
+    description: "Kernel build orchestrator with hook support"
+    source: scripts/build-kernel.sh
+    bin_name: build-kernel
+    hooks:
+      install: shared/setup-build-kernel.sh
+      uninstall: shared/cleanup-build-kernel.sh
+    logrotate: logrotate/build-kernel
+    dirs:
+      - path: /var/log/build-kernel
+        mode: "755"
+      - path: /usr/local/lib/build-kernel
+        mode: "755"
+      - path: /usr/local/share/build-kernel/hooks
+        mode: "755"
+
+  aw88399:
+    kind: hook
+    version: 0.1.0
+    description: "AW88399 audio patch + kernel config pre-build hook"
+    deps: [build-kernel]
+    hooks:
+      install: shared/install-hook-aw88399.sh
+      uninstall: shared/cleanup-hook-aw88399.sh

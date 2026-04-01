@@ -13,7 +13,7 @@
 [[ -n "${_LIB_CORE_LOADED:-}" ]] && return 0
 readonly _LIB_CORE_LOADED=1
 # shellcheck disable=SC2034  # used by scripts sourcing this lib
-readonly LIB_VERSION="0.1.0"
+readonly LIB_VERSION="0.1.1"
 
 # ===================
 # Colors
