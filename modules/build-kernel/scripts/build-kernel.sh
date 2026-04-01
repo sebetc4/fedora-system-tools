@@ -159,9 +159,9 @@ fi
 # =============================================================================
 if [[ "$SETUP_MOK_ONLY" == "true" ]]; then
     show_mok_status
-    check_signing_prerequisites \
-        && log_success "Signing already fully configured" \
-        || true
+    if check_signing_prerequisites; then
+        log_success "Signing already fully configured"
+    fi
     setup_mok_workflow
     exit $?
 fi
