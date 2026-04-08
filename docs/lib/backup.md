@@ -114,6 +114,7 @@ Build rsync options string from global variables. Outputs space-separated option
 | `RSYNC_DELETE`     | `true`   | `--delete`       |
 | `RSYNC_PROGRESS`   | `true`   | `--info=progress2` |
 | `RSYNC_COMPRESS`   | `false`  | `-z`             |
+| `RSYNC_PARTIAL`    | `false`  | `--partial`      |
 | `DRY_RUN`          | `false`  | `--dry-run`      |
 
 Always adds `-v -h`.

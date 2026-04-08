@@ -70,6 +70,7 @@ rsync:
   progress: true        # Show progress during transfer
   compress: false       # Network compression (usually not needed for local)
   archive: true         # Preserve permissions, timestamps, etc.
+  partial: true         # Keep partial transfers on interruption (allows resuming)
 
 # BTRFS options
 btrfs:

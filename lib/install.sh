@@ -7,7 +7,7 @@
 #
 # Module: lib
 # Requires: core (local source, not yet installed)
-# Version: 0.1.1
+# Version: 0.2.0
 #
 # Usage:
 #   sudo ./lib/install.sh          # Install lib + gum

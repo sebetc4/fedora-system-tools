@@ -1,7 +1,7 @@
 # modules/backup/module.yml
 name: backup
 version: 0.1.0
-min_lib_version: 0.1.0
+min_lib_version: 0.2.0
 description: "Backup scripts (system, HDD, Bitwarden, VPS)"
 type: system
 
@@ -37,7 +37,7 @@ submodules:
         level: important
 
   hdd:
-    version: 0.1.0
+    version: 0.2.0
     description: "Simple HDD to HDD mirror backup"
     source: hdd-to-hdd/backup.sh
     bin_name: backup-hdd
@@ -55,7 +55,7 @@ submodules:
         level: important
 
   hdd-both:
-    version: 0.1.0
+    version: 0.2.0
     description: "Split backup across two drives"
     source: hdd-to-both-hdd/backup.sh
     bin_name: backup-hdd-both

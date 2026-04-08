@@ -234,7 +234,8 @@ rsync_safe() {
 }
 
 # Build rsync options array from global variables.
-# Expects: RSYNC_ARCHIVE, RSYNC_DELETE, RSYNC_PROGRESS, RSYNC_COMPRESS, DRY_RUN
+# Expects: RSYNC_ARCHIVE, RSYNC_DELETE, RSYNC_PROGRESS, RSYNC_COMPRESS,
+#          RSYNC_PARTIAL, DRY_RUN
 # Outputs space-separated options string.
 build_rsync_options() {
     local opts=()
@@ -243,6 +244,7 @@ build_rsync_options() {
     [[ "${RSYNC_DELETE:-true}" == "true" ]] && opts+=("--delete")
     [[ "${RSYNC_PROGRESS:-true}" == "true" ]] && opts+=("--info=progress2")
     [[ "${RSYNC_COMPRESS:-false}" == "true" ]] && opts+=("-z")
+    [[ "${RSYNC_PARTIAL:-false}" == "true" ]] && opts+=("--partial")
     [[ "${DRY_RUN:-false}" == "true" ]] && opts+=("--dry-run")
 
     opts+=("-v" "-h")

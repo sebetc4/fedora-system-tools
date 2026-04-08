@@ -66,6 +66,9 @@ rsync:
   # Preserve all attributes
   archive: true
 
+  # Keep partial transfers on interruption (allows resuming)
+  partial: true
+
 # ============================================================================
 # BTRFS OPTIONS
 # ============================================================================

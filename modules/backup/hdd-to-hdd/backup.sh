@@ -7,7 +7,7 @@
 #
 # Module: backup
 # Requires: core, log, yaml, validate, backup
-# Version: 0.1.0
+# Version: 0.2.0
 #
 # Usage:
 #   sudo backup-hdd [OPTIONS]
@@ -163,6 +163,9 @@ load_config() {
     RSYNC_ARCHIVE=$(parse_yaml "rsync.archive")
     [[ -z "$RSYNC_ARCHIVE" ]] && RSYNC_ARCHIVE="true"
 
+    RSYNC_PARTIAL=$(parse_yaml "rsync.partial")
+    [[ -z "$RSYNC_PARTIAL" ]] && RSYNC_PARTIAL="false"
+
     # Btrfs
     BTRFS_SCRUB=$(parse_yaml "btrfs.scrub_after_backup")
     [[ -z "$BTRFS_SCRUB" ]] && BTRFS_SCRUB="false"
@@ -205,6 +208,7 @@ validate_config() {
     validate_boolean "rsync.progress" "$RSYNC_PROGRESS"
     validate_boolean "rsync.compress" "$RSYNC_COMPRESS"
     validate_boolean "rsync.archive" "$RSYNC_ARCHIVE"
+    validate_boolean "rsync.partial" "$RSYNC_PARTIAL"
     validate_boolean "btrfs.scrub_after_backup" "$BTRFS_SCRUB"
     validate_boolean "btrfs.show_compression_stats" "$BTRFS_STATS"
     validate_boolean "safety.confirm_before_start" "$CONFIRM"
