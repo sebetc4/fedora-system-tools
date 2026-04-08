@@ -1,91 +1,144 @@
 # ============================================================================
-# HDD Split Backup Configuration
+# HDD SPLIT BACKUP CONFIGURATION
 # ============================================================================
-# This config allows backing up different folders from a source drive to
-# two separate backup drives.
+# Split backup from a source drive to two separate backup drives,
+# with different folder selections per drive.
 #
 # Use case: Split large backup across two drives, or backup critical data
 # to one drive and media to another.
+# Default location: ~/.config/backup/hdd-both.yml
 # ============================================================================
 
-# Source drive
+# ============================================================================
+# SOURCE DRIVE (active storage)
+# ============================================================================
 source:
   path: /mnt/storage
-  label: Storage  # Optional friendly name
+  label: Storage
 
-# Backup Drive 1
+# ============================================================================
+# BACKUP DRIVE 1
+# ============================================================================
 backup_drive_1:
   path: /mnt/backup1
-  label: Backup1  # Optional friendly name
+  label: Backup1
 
-  # Folders to backup to this drive
+  # Directories to backup to this drive (relative to source path)
+  # If no subfolders specified, the entire folder is backed up
   folders:
-    # Example 1: Backup specific subfolders only
     - path: Documents
       subfolders:
         - Personal
         - Work
 
-    # Example 2: Backup entire folder
     - path: Photos
       subfolders:
         - 2024
         - 2025
 
-  # Snapshots (optional, requires BTRFS)
+  # BTRFS snapshots before backup (optional, requires BTRFS)
   snapshots:
+    # Enable/disable snapshots before backup
     enabled: false
+
+    # Where to store snapshots (relative to backup drive path)
     directory: .snapshots
+
+    # Number of snapshots to keep (older ones auto-deleted)
     retention: 3
+
+    # Snapshot naming format (date will be appended)
     prefix: backup
 
-# Backup Drive 2
+# ============================================================================
+# BACKUP DRIVE 2
+# ============================================================================
 backup_drive_2:
   path: /mnt/backup2
-  label: Backup2  # Optional friendly name
+  label: Backup2
 
-  # Folders to backup to this drive (can be different from drive 1)
+  # Directories to backup to this drive (can differ from drive 1)
   folders:
-    # Backup full folders
     - path: Music
     - path: Videos
 
-  # Snapshots (optional, requires BTRFS)
+  # BTRFS snapshots before backup (optional, requires BTRFS)
   snapshots:
+    # Enable/disable snapshots before backup
     enabled: false
+
+    # Where to store snapshots (relative to backup drive path)
     directory: .snapshots
+
+    # Number of snapshots to keep (older ones auto-deleted)
     retention: 3
+
+    # Snapshot naming format (date will be appended)
     prefix: backup
 
-# Global exclusions (applied to all backups)
+# ============================================================================
+# EXCLUSIONS
+# ============================================================================
+# Patterns excluded from all backups (rsync --exclude)
 exclude:
   - "*.tmp"
   - "*.cache"
   - ".Trash-*"
   - "lost+found"
 
-# Rsync options
+# ============================================================================
+# RSYNC OPTIONS
+# ============================================================================
 rsync:
-  delete: true          # Delete files in destination not in source
-  progress: true        # Show progress during transfer
-  compress: false       # Network compression (usually not needed for local)
-  archive: true         # Preserve permissions, timestamps, etc.
-  partial: true         # Keep partial transfers on interruption (allows resuming)
+  # Delete files in destination not present in source
+  delete: true
 
-# BTRFS options
+  # Show progress during transfer
+  progress: true
+
+  # Compress during transfer (not needed for local backup)
+  compress: false
+
+  # Preserve all attributes
+  archive: true
+
+  # Keep partial transfers on interruption (allows resuming)
+  partial: true
+
+  # Write updated data directly to destination file (no temp file)
+  # Saves disk space on drives with limited free space
+  inplace: false
+
+# ============================================================================
+# BTRFS OPTIONS
+# ============================================================================
 btrfs:
-  scrub_after_backup: false          # Run integrity check after backup
-  show_compression_stats: false      # Show compression statistics
+  # Run scrub after backup (integrity check)
+  scrub_after_backup: false
 
-# Logging (rotation managed by logrotate, see /etc/logrotate.d/backup-scripts)
+  # Show compression statistics after backup
+  show_compression_stats: false
+
+# ============================================================================
+# LOGGING
+# ============================================================================
 logging:
+  # Log file path (rotation managed by logrotate, see /etc/logrotate.d/backup-scripts)
+  # Leave empty for console-only output
   file: /var/log/backup/backup-hdd-both.log
 
-# Safety options
+# ============================================================================
+# SAFETY OPTIONS
+# ============================================================================
 safety:
-  confirm_before_start: true    # Ask for confirmation before starting
-  check_disk_space: true        # Verify sufficient space before backup
-  dry_run: false                # Simulate without making changes
+  # Require confirmation before starting backup
+  confirm_before_start: true
+
+  # Check disk space before backup
+  check_disk_space: true
+
+  # Dry run mode (simulate without making changes)
+  dry_run: false
 
 # ============================================================================
 # NOTES
@@ -102,9 +155,9 @@ safety:
 #   3. Selective backup of large folder trees
 #
 # Drive Selection:
-#   Use -d option to backup to specific drive:
-#   - backup.sh -d 1       # Backup to drive 1 only
-#   - backup.sh -d 2       # Backup to drive 2 only
-#   - backup.sh -d both    # Backup to both drives (default)
+#   Use -d option to backup to a specific drive:
+#   backup.sh -d 1       # Backup to drive 1 only
+#   backup.sh -d 2       # Backup to drive 2 only
+#   backup.sh -d both    # Backup to both drives (default)
 #
 # ============================================================================

@@ -8,7 +8,7 @@
 #
 # Module: backup
 # Requires: core, log, yaml, validate, backup
-# Version: 0.2.0
+# Version: 0.3.0
 #
 # Usage:
 #   sudo backup-hdd-both [OPTIONS]
@@ -97,6 +97,7 @@ ${C_GREEN}Options:${C_NC}
     --no-snapshot          Disable snapshots (overrides config)
     --scrub                Run integrity check after backup
     --stats                Show compression statistics
+    --inplace              Update files in place (no temp files, saves disk space)
     -h, --help             Show this help
 
 ${C_GREEN}Examples:${C_NC}
@@ -181,6 +182,9 @@ load_config() {
     RSYNC_PARTIAL=$(parse_yaml "rsync.partial")
     [[ -z "$RSYNC_PARTIAL" ]] && RSYNC_PARTIAL="false"
 
+    RSYNC_INPLACE=$(parse_yaml "rsync.inplace")
+    [[ -z "$RSYNC_INPLACE" ]] && RSYNC_INPLACE="false"
+
     # Btrfs
     BTRFS_SCRUB=$(parse_yaml "btrfs.scrub_after_backup")
     [[ -z "$BTRFS_SCRUB" ]] && BTRFS_SCRUB="false"
@@ -226,6 +230,7 @@ validate_config() {
     validate_boolean "rsync.compress" "$RSYNC_COMPRESS"
     validate_boolean "rsync.archive" "$RSYNC_ARCHIVE"
     validate_boolean "rsync.partial" "$RSYNC_PARTIAL"
+    validate_boolean "rsync.inplace" "$RSYNC_INPLACE"
     validate_boolean "btrfs.scrub_after_backup" "$BTRFS_SCRUB"
     validate_boolean "btrfs.show_compression_stats" "$BTRFS_STATS"
     validate_boolean "safety.confirm_before_start" "$CONFIRM"
@@ -425,6 +430,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --stats)
             BTRFS_STATS="true"
+            shift
+            ;;
+        --inplace)
+            RSYNC_INPLACE="true"
             shift
             ;;
         -h|--help)

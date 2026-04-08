@@ -69,6 +69,10 @@ rsync:
   # Keep partial transfers on interruption (allows resuming)
   partial: true
 
+  # Write updated data directly to destination file (no temp file)
+  # Saves disk space on drives with limited free space
+  inplace: false
+
 # ============================================================================
 # BTRFS OPTIONS
 # ============================================================================
