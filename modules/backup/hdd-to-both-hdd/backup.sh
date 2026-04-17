@@ -8,7 +8,7 @@
 #
 # Module: backup
 # Requires: core, log, yaml, validate, backup
-# Version: 0.3.0
+# Version: 0.3.1
 #
 # Usage:
 #   sudo backup-hdd-both [OPTIONS]
@@ -259,24 +259,27 @@ validate_config() {
 }
 
 validate_paths() {
-    if [[ ! -d "$SOURCE_PATH" ]]; then
-        log_error "Source not found: $SOURCE_PATH"
-        echo "Is the source drive mounted?"
+    if ! is_mounted "$SOURCE_PATH"; then
+        log_error "Source not mounted: $SOURCE_PATH"
+        echo "Is the source drive plugged in and mounted?"
+        echo "Check: lsblk | findmnt $SOURCE_PATH"
         exit 1
     fi
 
     if [[ "$TARGET_DRIVE" == "1" ]] || [[ "$TARGET_DRIVE" == "both" ]]; then
-        if [[ ! -d "$BACKUP1_PATH" ]]; then
-            log_error "Backup drive 1 not found: $BACKUP1_PATH"
-            echo "Is $BACKUP1_LABEL mounted? Use: sudo mount $BACKUP1_PATH"
+        if ! is_mounted "$BACKUP1_PATH"; then
+            log_error "Backup drive 1 not mounted: $BACKUP1_PATH"
+            echo "Is $BACKUP1_LABEL plugged in and mounted?"
+            echo "Check: lsblk | sudo mount $BACKUP1_PATH"
             exit 1
         fi
     fi
 
     if [[ "$TARGET_DRIVE" == "2" ]] || [[ "$TARGET_DRIVE" == "both" ]]; then
-        if [[ ! -d "$BACKUP2_PATH" ]]; then
-            log_error "Backup drive 2 not found: $BACKUP2_PATH"
-            echo "Is $BACKUP2_LABEL mounted? Use: sudo mount $BACKUP2_PATH"
+        if ! is_mounted "$BACKUP2_PATH"; then
+            log_error "Backup drive 2 not mounted: $BACKUP2_PATH"
+            echo "Is $BACKUP2_LABEL plugged in and mounted?"
+            echo "Check: lsblk | sudo mount $BACKUP2_PATH"
             exit 1
         fi
     fi

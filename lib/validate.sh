@@ -94,6 +94,19 @@ validate_path() {
     fi
 }
 
+# Path must be an active mount point (filesystem mounted there).
+# Prevents backups to local disk when external media is not mounted.
+validate_mount() {
+    local key="$1"
+    local path="$2"
+    if [[ -z "$path" ]]; then
+        return  # validate_required handles empty values
+    fi
+    if ! mountpoint -q "$path" 2>/dev/null; then
+        validation_add_error "$key is not a mounted filesystem: $path — is the drive plugged in and mounted?"
+    fi
+}
+
 # Value must match a regex pattern
 validate_pattern() {
     local key="$1"

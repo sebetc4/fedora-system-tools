@@ -8,7 +8,7 @@
 #
 # Module: backup
 # Requires: core, log, ui, yaml, validate, backup
-# Version: 0.1.0
+# Version: 0.1.1
 #
 # Usage:
 #   sudo backup-system [OPTIONS]
@@ -160,6 +160,7 @@ validate_config() {
 
     # Paths
     validate_path "backup.hdd_mount" "$BACKUP_MOUNT"
+    validate_mount "backup.hdd_mount" "$BACKUP_MOUNT"
     validate_path "backup.backup_root" "$BACKUP_ROOT"
     validate_path "logging.file" "$LOG_FILE"
 

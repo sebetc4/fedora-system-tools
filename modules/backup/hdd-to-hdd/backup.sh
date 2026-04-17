@@ -7,7 +7,7 @@
 #
 # Module: backup
 # Requires: core, log, yaml, validate, backup
-# Version: 0.3.0
+# Version: 0.3.1
 #
 # Usage:
 #   sudo backup-hdd [OPTIONS]
@@ -237,15 +237,17 @@ validate_config() {
 }
 
 validate_paths() {
-    if [[ ! -d "$SOURCE_PATH" ]]; then
-        log_error "Source not found: $SOURCE_PATH"
-        echo "Is HDD1 mounted?"
+    if ! is_mounted "$SOURCE_PATH"; then
+        log_error "Source not mounted: $SOURCE_PATH"
+        echo "Is the source drive plugged in and mounted?"
+        echo "Check: lsblk | findmnt $SOURCE_PATH"
         exit 1
     fi
 
-    if [[ ! -d "$BACKUP_PATH" ]]; then
-        log_error "Backup drive not found: $BACKUP_PATH"
-        echo "Is Backup1 mounted? Use: sudo mount $BACKUP_PATH"
+    if ! is_mounted "$BACKUP_PATH"; then
+        log_error "Backup drive not mounted: $BACKUP_PATH"
+        echo "Is $BACKUP_LABEL plugged in and mounted?"
+        echo "Check: lsblk | sudo mount $BACKUP_PATH"
         exit 1
     fi
 
