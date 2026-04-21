@@ -36,9 +36,12 @@ backup_drive_1:
         - 2024
         - 2025
 
-  # BTRFS snapshots before backup (optional, requires BTRFS)
+  # Destination snapshots / timeline history (optional)
+  # Dispatches automatically on drive FS:
+  #   BTRFS dest → native read-only subvolume snapshots
+  #   Non-BTRFS  → dated directories under <directory> (mode controls shape)
   snapshots:
-    # Enable/disable snapshots before backup
+    # Enable/disable snapshot creation
     enabled: false
 
     # Where to store snapshots (relative to backup drive path)
@@ -49,6 +52,9 @@ backup_drive_1:
 
     # Snapshot naming format (date will be appended)
     prefix: backup
+
+    # Non-BTRFS versioning mode: backup-dir | link-dest (ignored on BTRFS)
+    mode: backup-dir
 
 # ============================================================================
 # BACKUP DRIVE 2
@@ -62,19 +68,15 @@ backup_drive_2:
     - path: Music
     - path: Videos
 
-  # BTRFS snapshots before backup (optional, requires BTRFS)
+  # Destination snapshots / timeline history (optional)
   snapshots:
-    # Enable/disable snapshots before backup
     enabled: false
-
-    # Where to store snapshots (relative to backup drive path)
     directory: .snapshots
-
-    # Number of snapshots to keep (older ones auto-deleted)
     retention: 3
-
-    # Snapshot naming format (date will be appended)
     prefix: backup
+
+    # Non-BTRFS versioning mode: backup-dir | link-dest (ignored on BTRFS)
+    mode: backup-dir
 
 # ============================================================================
 # EXCLUSIONS
@@ -99,7 +101,8 @@ rsync:
   # Compress during transfer (not needed for local backup)
   compress: false
 
-  # Preserve all attributes
+  # Preserve basic file attributes (-a = -rlptgoD). Does NOT include
+  # ACLs, xattrs, or hard links — those are separate flags below.
   archive: true
 
   # Keep partial transfers on interruption (allows resuming)
@@ -108,6 +111,43 @@ rsync:
   # Write updated data directly to destination file (no temp file)
   # Saves disk space on drives with limited free space
   inplace: false
+
+  # --- Metadata preservation (enable if mirroring system-owned data) ---
+
+  # Preserve POSIX ACLs (-A)
+  acls: false
+
+  # Preserve extended attributes (-X): SELinux contexts, capabilities, user.*
+  xattrs: false
+
+  # Preserve hard links (-H)
+  hard_links: false
+
+  # Keep numeric uid/gid (--numeric-ids)
+  numeric_ids: false
+
+  # Do not cross filesystem boundaries (-x)
+  one_file_system: false
+
+  # --- Optional tuning ---
+
+  # Verify transfers by checksum instead of mtime+size (-c).
+  # CPU-heavy: rsync reads both sides entirely.
+  checksum: false
+
+  # Efficiently handle sparse files (-S). Incompatible with --inplace.
+  sparse: false
+
+  # Skip delta-xfer algorithm (-W). Often faster for local-to-local.
+  whole_file: false
+
+  # Print transfer statistics summary at the end (--stats)
+  stats: false
+
+  # Bandwidth limit (--bwlimit). "0" or empty = unlimited. Accepts rsync
+  # syntax: plain number = kB/s, or suffix K/M/G (e.g. "50M" = 50 MB/s).
+  # Useful on USB-connected external disks to cap throughput.
+  bwlimit: "0"
 
 # ============================================================================
 # BTRFS OPTIONS

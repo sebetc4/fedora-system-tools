@@ -1,4 +1,4 @@
-# System Backup with Hook System
+# Local Backup with Hook System
 
 Modular backup solution for Linux systems. Pure rsync backup driven by YAML config,
 with a pluggable hook system for BTRFS operations, Bitwarden export, or any custom task.
@@ -33,15 +33,15 @@ with a pluggable hook system for BTRFS operations, Bitwarden export, or any cust
 ## Architecture
 
 ```
-backup-system (main script)
+backup-local (main script)
 │
 ├── Config: dynamic paths[] + hooks declaration
 │
 ├── [PRE-BACKUP HOOKS]
-│   ├── btrfs-save-structure.sh   → documents BTRFS layout
-│   └── btrfs-snapshot.sh         → snapshots current backup state
+│   └── btrfs-save-structure.sh   → documents BTRFS layout
 │
-├── RSYNC BACKUP (loop over enabled paths[])
+├── RSYNC / ARCHIVE BACKUP (loop over enabled paths[])
+│   └── Destination timeline (built-in snapshots: section)
 │
 ├── [POST-BACKUP HOOKS]
 │   └── backup-bitwarden          → Bitwarden vault export
@@ -49,31 +49,29 @@ backup-system (main script)
 └── Final report
 ```
 
-### Why snapshot BEFORE rsync?
+### Destination timeline (versioned history)
 
-The snapshot captures the **current backup state** before rsync overwrites data:
+Built into `backup-local` via the `snapshots:` config section — no hook
+required. Dispatches by destination filesystem:
 
-1. Snapshot preserves the last known-good backup
-2. Rsync overwrites the destination with fresh data
-3. If rsync crashes mid-transfer, the snapshot still has a clean copy
+- **BTRFS** → native read-only subvolume snapshots under `<backup_root>/.snapshots/`
+- **ext4 / xfs / other** → dated directories (`backup-dir` or `link-dest` mode)
 
-With post-backup snapshots, a failed rsync would leave both the working copy
-corrupted AND no snapshot of the previous state.
+Retention is enforced automatically.
 
 ### Separation of Concerns
 
 | Component | Responsibility |
 |-----------|---------------|
-| `backup-system` | Pure rsync backup + hook orchestration |
+| `backup-local` | rsync/archive backup, timeline, hook orchestration |
 | `btrfs-save-structure.sh` | BTRFS subvolume documentation (pre-backup) |
-| `btrfs-snapshot.sh` | Versioned snapshots of backup destination (pre-backup) |
 | `backup-bitwarden` | Bitwarden vault export (post-backup, standalone) |
 
 ### Hook Autonomy
 
 Each hook is a **fully autonomous script**:
 - Hardcodes its own `DEFAULT_CONFIG` path internally
-- Can be tested standalone: `sudo btrfs-snapshot.sh --dry-run`
+- Can be tested standalone: `sudo btrfs-save-structure.sh --dry-run`
 - Receives only `--dry-run` and `-y` flags from the orchestrator
 - Reads environment variables: `BACKUP_ROOT`, `BACKUP_MOUNT`, `DRY_RUN`, `LOG_FILE`
 
@@ -90,7 +88,7 @@ sudo ./modules/backup/local/install.sh
 ```
 
 This installs:
-- `backup-system` → `/usr/local/bin/`
+- `backup-local` → `/usr/local/bin/`
 - Hook scripts → `/usr/local/lib/system-scripts/hooks.d/pre-backup/`
 - Example configs → `~/.config/backup/` and `~/.config/backup/hooks/`
 
@@ -98,12 +96,12 @@ This installs:
 
 ## Configuration
 
-### Main config: `~/.config/backup/system.yml`
+### Main config: `~/.config/backup/local.yml`
 
 ```yaml
 backup:
   hdd_mount: /media/hdd1
-  backup_root: /media/hdd1/backup-system
+  backup_root: /media/hdd1/backup-local
 
 paths:
   - name: system
@@ -151,11 +149,6 @@ hooks:
       enabled: true
       confirm: true
 
-    - name: btrfs-snapshot
-      script: /usr/local/lib/system-scripts/hooks.d/pre-backup/btrfs-snapshot.sh
-      enabled: true
-      confirm: true
-
   post_backup:
     - name: bitwarden
       script: /usr/local/bin/backup-bitwarden
@@ -163,7 +156,7 @@ hooks:
       confirm: true
 
 logging:
-  file: /var/log/backup/backup-system.log
+  file: /var/log/backup/backup-local.log
 
 notifications:
   enabled: true
@@ -221,28 +214,19 @@ additional_disks:
     description: "Data disk"
 ```
 
-### Pre-backup: btrfs-snapshot
+### Destination snapshots (built-in, not a hook)
 
-Snapshots the current backup state **before** rsync overwrites it.
-Creates versioned read-only BTRFS snapshots with rotation.
+Versioned history of the backup destination is built into `backup-local`
+via the top-level `snapshots:` config section. See main config example above.
 
-**Config**: `~/.config/backup/hooks/btrfs-snapshot.yml`
+Dispatches by destination filesystem:
 
-```yaml
-directory: /media/hdd1/.backup-system-snapshots
-retention: 4
-prefix: backup
-```
+- **BTRFS** → native read-only subvolume snapshots under
+  `<backup_root>/<directory>/` (requires `backup_root` to be a subvolume).
+- **Non-BTRFS** → dated directories in `backup-dir` (default, SMR-friendly)
+  or `link-dest` (hardlinked point-in-time view) mode.
 
-**Requires** `BACKUP_ROOT` to be a BTRFS subvolume. To convert an existing
-backup directory:
-
-```bash
-sudo mv /media/hdd1/backup-system /media/hdd1/backup-system-old
-sudo btrfs subvolume create /media/hdd1/backup-system
-sudo rsync -aAXHv /media/hdd1/backup-system-old/ /media/hdd1/backup-system/
-sudo rm -rf /media/hdd1/backup-system-old
-```
+Retention is enforced automatically. No pre-backup hook is required.
 
 ### Post-backup: bitwarden
 
@@ -265,29 +249,29 @@ bitwarden:
 
 ```bash
 # Standard backup (interactive confirmation for hooks)
-sudo backup-system
+sudo backup-local
 
 # Dry run
-sudo backup-system --dry-run
+sudo backup-local --dry-run
 
 # Skip all confirmations
-sudo backup-system --yes
+sudo backup-local --yes
 
 # Custom config
-sudo backup-system -c /path/to/config.yml
+sudo backup-local -c /path/to/config.yml
 
 # With BTRFS scrub check
-sudo backup-system --scrub
+sudo backup-local --scrub
 
 # With compression stats
-sudo backup-system --stats
+sudo backup-local --stats
 ```
 
 ### Options
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--config <file>` | `-c` | Config file (default: `~/.config/backup/system.yml`) |
+| `--config <file>` | `-c` | Config file (default: `~/.config/backup/local.yml`) |
 | `--dry-run` | `-n` | Simulate without writing |
 | `--yes` | `-y` | Skip all confirmation prompts |
 | `--scrub` | | Run BTRFS scrub after backup |
@@ -318,7 +302,7 @@ REAL_USER="${SUDO_USER:-$USER}"
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 readonly DEFAULT_CONFIG="$REAL_HOME/.config/backup/hooks/my-hook.yml"
 
-# Inherit environment from backup-system
+# Inherit environment from backup-local
 BACKUP_ROOT="${BACKUP_ROOT:-}"
 DRY_RUN="${DRY_RUN:-false}"
 
@@ -378,16 +362,14 @@ hooks:
 ## Files
 
 ```
-backup-system/
+backup-local/
 ├── backup.sh                          # Main backup script
 ├── config.yml                         # Example configuration
 ├── hooks.d/
 │   └── pre-backup/
-│       ├── btrfs-save-structure.sh    # BTRFS structure documentation
-│       └── btrfs-snapshot.sh          # Versioned snapshot creation
+│       └── btrfs-save-structure.sh    # BTRFS structure documentation
 ├── hooks-config/
-│   ├── btrfs-save-structure.yml       # Example hook config
-│   └── btrfs-snapshot.yml             # Example hook config
+│   └── btrfs-save-structure.yml       # Example hook config
 └── README.md                          # This file
 
 bitwarden/
@@ -399,9 +381,9 @@ templates/
 ```
 
 **Installed locations**:
-- Script: `/usr/local/bin/backup-system`
+- Script: `/usr/local/bin/backup-local`
 - Hooks: `/usr/local/lib/system-scripts/hooks.d/pre-backup/`
-- User config: `~/.config/backup/system.yml`
+- User config: `~/.config/backup/local.yml`
 - Hook configs: `~/.config/backup/hooks/`
 - Bitwarden config: `~/.config/backup/bitwarden.yml`
 
@@ -412,9 +394,9 @@ templates/
 ### "A backup is already running"
 
 ```bash
-ps aux | grep backup-system
+ps aux | grep backup-local
 # If not running, remove stale lock:
-sudo rm /run/lock/backup-system.lock
+sudo rm /run/lock/backup-local.lock
 ```
 
 ### Hook fails silently
@@ -446,20 +428,20 @@ ls -la ~/.config/backup/hooks/
 The backup destination must be a BTRFS subvolume for snapshots:
 ```bash
 # Check current state
-btrfs subvolume show /media/hdd1/backup-system
+btrfs subvolume show /media/hdd1/backup-local
 
 # Convert existing directory to subvolume
-sudo mv /media/hdd1/backup-system /media/hdd1/backup-system-old
-sudo btrfs subvolume create /media/hdd1/backup-system
-sudo rsync -aAXHv /media/hdd1/backup-system-old/ /media/hdd1/backup-system/
-sudo rm -rf /media/hdd1/backup-system-old
+sudo mv /media/hdd1/backup-local /media/hdd1/backup-local-old
+sudo btrfs subvolume create /media/hdd1/backup-local
+sudo rsync -aAXHv /media/hdd1/backup-local-old/ /media/hdd1/backup-local/
+sudo rm -rf /media/hdd1/backup-local-old
 ```
 
 ### Dry run to test
 
 Always test with `--dry-run` after config changes:
 ```bash
-sudo backup-system --dry-run --yes
+sudo backup-local --dry-run --yes
 ```
 
 ---

@@ -28,7 +28,11 @@ source "$LIB_DIR/core.sh"
 # source "$LIB_DIR/format.sh"    # Size/date formatting
 # source "$LIB_DIR/yaml.sh"      # YAML parsing via yq
 # source "$LIB_DIR/validate.sh"  # Config validation
-# source "$LIB_DIR/backup.sh"    # BTRFS, rsync helpers
+# source "$LIB_DIR/fs.sh"        # Mount / BTRFS / disk-usage helpers
+#
+# Module-owned libraries (only if your module installs one):
+# readonly BACKUP_LIB_DIR="/usr/local/lib/backup-scripts"
+# source "$BACKUP_LIB_DIR/backup-lib.sh"   # BTRFS ops, rsync helpers, timeline, archive
 
 # ===================
 # Configuration

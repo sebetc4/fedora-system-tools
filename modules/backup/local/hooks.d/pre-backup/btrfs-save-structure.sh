@@ -16,7 +16,7 @@
 #   sudo btrfs-save-structure.sh [--dry-run] [-c <custom-config>]
 #
 # Usage (as hook):
-#   Called automatically by backup-system via hooks.pre_backup[]
+#   Called automatically by backup-local via hooks.pre_backup[]
 #   Receives BACKUP_ROOT, BACKUP_MOUNT, DRY_RUN via environment
 #   Uses config: ~/.config/backup/hooks/btrfs-save-structure.yml
 #
@@ -51,7 +51,7 @@ REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 # Default config path (hook manages its own config internally)
 readonly DEFAULT_CONFIG="$REAL_HOME/.config/backup/hooks/btrfs-save-structure.yml"
 
-# Inherit from parent script (backup-system exports these)
+# Inherit from parent script (backup-local exports these)
 BACKUP_ROOT="${BACKUP_ROOT:-}"
 DRY_RUN="${DRY_RUN:-false}"
 
@@ -73,7 +73,7 @@ ${C_GREEN}Options:${C_NC}
     --dry-run            Simulate without writing files
     -h, --help           Display this help
 
-${C_GREEN}Environment (set by backup-system):${C_NC}
+${C_GREEN}Environment (set by backup-local):${C_NC}
     BACKUP_ROOT          Backup destination root path
     DRY_RUN              true/false
 

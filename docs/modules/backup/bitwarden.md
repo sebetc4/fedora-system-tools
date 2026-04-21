@@ -22,7 +22,7 @@ Export and encrypt Bitwarden vault for offline backup with automatic rotation.
 - **Secure cleanup** — all temporary files shredded on exit (trap handler)
 - **Dry-run mode** — test config without writing
 - **Retry on password mismatch** — encrypted export retries up to 3 times
-- **Hook-compatible** — callable standalone or as a `backup-system` pre-backup hook
+- **Hook-compatible** — callable standalone or as a `backup-local` pre-backup hook
 
 ---
 
@@ -158,10 +158,10 @@ sudo mkdir -p /media/backup-hdd/backups/bitwarden
 
 ## Hook Integration
 
-`backup-bitwarden` can run as a **pre-backup hook** for `backup-system`:
+`backup-bitwarden` can run as a **pre-backup hook** for `backup-local`:
 
 ```yaml
-# In ~/.config/backup/system.yml
+# In ~/.config/backup/local.yml
 hooks:
   pre_backup:
     - name: bitwarden
@@ -171,7 +171,7 @@ hooks:
       run_as_user: true    # Drop sudo — bw CLI is installed per-user
 ```
 
-When called as a hook, confirmation is handled by the parent `backup-system` script.
+When called as a hook, confirmation is handled by the parent `backup-local` script.
 
 ---
 

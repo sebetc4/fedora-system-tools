@@ -39,7 +39,7 @@ notify-<module>-<purpose>
 | `notify-weekly-scan` | clamav | weekly-clamscan |
 | `notify-download-scan` | clamav | download-clamscan |
 | `notify-usb-scan` | clamav | usb-clamscan |
-| `notify-backup-system` | backup | system |
+| `notify-backup-local` | backup | local |
 | `notify-backup-hdd` | backup | hdd |
 | `notify-backup-hdd-both` | backup | hdd-both |
 | `notify-backup-vps` | backup | vps |
@@ -100,7 +100,7 @@ notify-daily-scan=security-high
 notify-weekly-scan=security-high
 notify-download-scan=security-medium
 notify-usb-scan=drive-removable-media
-notify-backup-system=drive-harddisk
+notify-backup-local=drive-harddisk
 notify-backup-hdd=drive-harddisk
 notify-backup-hdd-both=drive-harddisk
 notify-backup-vps=drive-harddisk
@@ -116,7 +116,7 @@ default=all
 notify-daily-scan=important
 notify-weekly-scan=important
 notify-download-scan=important
-notify-backup-system=important
+notify-backup-local=important
 notify-backup-hdd=important
 notify-backup-hdd-both=important
 notify-backup-vps=important

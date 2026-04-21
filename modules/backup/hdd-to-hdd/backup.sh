@@ -2,12 +2,13 @@
 # =============================================================================
 # BACKUP-HDD - Simple HDD mirror backup
 # =============================================================================
-# Performs backup from HDD1 (active) to Backup1 (cold storage)
-# with optional Btrfs snapshots for versioning.
+# Performs backup from source HDD to destination HDD with optional
+# destination-side snapshots for versioning (BTRFS subvolume snapshots or
+# dated directories on non-BTRFS filesystems).
 #
 # Module: backup
-# Requires: core, log, yaml, validate, backup
-# Version: 0.3.1
+# Requires: core, log, yaml, validate, fs, backup-lib
+# Version: 0.4.0
 #
 # Usage:
 #   sudo backup-hdd [OPTIONS]
@@ -19,12 +20,14 @@ set -euo pipefail
 # LIB LOADING
 # =============================================================================
 readonly LIB_DIR="/usr/local/lib/system-scripts"
+readonly BACKUP_LIB_DIR="/usr/local/lib/backup-scripts"
 
 source "$LIB_DIR/core.sh"
 source "$LIB_DIR/log.sh"
 source "$LIB_DIR/yaml.sh"
 source "$LIB_DIR/validate.sh"
-source "$LIB_DIR/backup.sh"
+source "$LIB_DIR/fs.sh"
+source "$BACKUP_LIB_DIR/backup-lib.sh"
 
 # =============================================================================
 # ROOT CHECK
@@ -83,9 +86,9 @@ send_notification() {
 # =============================================================================
 usage() {
     cat <<EOF
-${C_BOLD}BTRFS HDD Backup Script v${VERSION}${C_NC}
+${C_BOLD}HDD Backup Script v${VERSION}${C_NC}
 
-Simple HDD mirror backup with optional Btrfs snapshots.
+Cross-filesystem HDD mirror backup with optional destination-side snapshots.
 
 ${C_GREEN}Usage:${C_NC}
     $SCRIPT_NAME [options]
@@ -94,16 +97,16 @@ ${C_GREEN}Options:${C_NC}
     -c, --config <file>    Config file (default: $DEFAULT_CONFIG_FILE)
     -n, --dry-run          Simulate without making changes
     -y, --yes              Skip confirmation prompts
-    --snapshot             Create snapshot before backup (overrides config)
+    --snapshot             Create destination snapshot (overrides config)
     --no-snapshot          Disable snapshots (overrides config)
-    --scrub                Run integrity check after backup
-    --stats                Show compression statistics
+    --scrub                Run BTRFS integrity check after backup
+    --stats                Show BTRFS compression statistics
     --inplace              Update files in place (no temp files, saves disk space)
     -h, --help             Show this help
 
 ${C_GREEN}Examples:${C_NC}
     $SCRIPT_NAME                    # Standard backup
-    $SCRIPT_NAME --snapshot         # Backup with snapshot
+    $SCRIPT_NAME --snapshot         # Backup with destination snapshot
     $SCRIPT_NAME -n                 # Dry run (test)
     $SCRIPT_NAME -y --scrub         # No confirm + integrity check
 
@@ -151,6 +154,9 @@ load_config() {
     SNAP_PREFIX=$(parse_yaml "snapshots.prefix")
     [[ -z "$SNAP_PREFIX" ]] && SNAP_PREFIX="backup"
 
+    SNAP_MODE=$(parse_yaml "snapshots.mode")
+    [[ -z "$SNAP_MODE" ]] && SNAP_MODE="backup-dir"
+
     # Rsync
     RSYNC_DELETE=$(parse_yaml "rsync.delete")
     [[ -z "$RSYNC_DELETE" ]] && RSYNC_DELETE="true"
@@ -169,6 +175,39 @@ load_config() {
 
     RSYNC_INPLACE=$(parse_yaml "rsync.inplace")
     [[ -z "$RSYNC_INPLACE" ]] && RSYNC_INPLACE="false"
+
+    # Metadata preservation (defaults OFF: data-only mirror)
+    RSYNC_ACLS=$(parse_yaml "rsync.acls")
+    [[ -z "$RSYNC_ACLS" ]] && RSYNC_ACLS="false"
+
+    RSYNC_XATTRS=$(parse_yaml "rsync.xattrs")
+    [[ -z "$RSYNC_XATTRS" ]] && RSYNC_XATTRS="false"
+
+    RSYNC_HARD_LINKS=$(parse_yaml "rsync.hard_links")
+    [[ -z "$RSYNC_HARD_LINKS" ]] && RSYNC_HARD_LINKS="false"
+
+    RSYNC_NUMERIC_IDS=$(parse_yaml "rsync.numeric_ids")
+    [[ -z "$RSYNC_NUMERIC_IDS" ]] && RSYNC_NUMERIC_IDS="false"
+
+    RSYNC_ONE_FILE_SYSTEM=$(parse_yaml "rsync.one_file_system")
+    [[ -z "$RSYNC_ONE_FILE_SYSTEM" ]] && RSYNC_ONE_FILE_SYSTEM="false"
+
+    # Optional tuning (defaults OFF)
+    RSYNC_CHECKSUM=$(parse_yaml "rsync.checksum")
+    [[ -z "$RSYNC_CHECKSUM" ]] && RSYNC_CHECKSUM="false"
+
+    RSYNC_SPARSE=$(parse_yaml "rsync.sparse")
+    [[ -z "$RSYNC_SPARSE" ]] && RSYNC_SPARSE="false"
+
+    RSYNC_WHOLE_FILE=$(parse_yaml "rsync.whole_file")
+    [[ -z "$RSYNC_WHOLE_FILE" ]] && RSYNC_WHOLE_FILE="false"
+
+    RSYNC_STATS=$(parse_yaml "rsync.stats")
+    [[ -z "$RSYNC_STATS" ]] && RSYNC_STATS="false"
+
+    # Bandwidth limit (string: "0"/"" = unlimited, or "50M", "100m", "10240" kB/s)
+    RSYNC_BWLIMIT=$(parse_yaml "rsync.bwlimit")
+    [[ -z "$RSYNC_BWLIMIT" ]] && RSYNC_BWLIMIT="0"
 
     # Btrfs
     BTRFS_SCRUB=$(parse_yaml "btrfs.scrub_after_backup")
@@ -214,6 +253,15 @@ validate_config() {
     validate_boolean "rsync.archive" "$RSYNC_ARCHIVE"
     validate_boolean "rsync.partial" "$RSYNC_PARTIAL"
     validate_boolean "rsync.inplace" "$RSYNC_INPLACE"
+    validate_boolean "rsync.acls" "$RSYNC_ACLS"
+    validate_boolean "rsync.xattrs" "$RSYNC_XATTRS"
+    validate_boolean "rsync.hard_links" "$RSYNC_HARD_LINKS"
+    validate_boolean "rsync.numeric_ids" "$RSYNC_NUMERIC_IDS"
+    validate_boolean "rsync.one_file_system" "$RSYNC_ONE_FILE_SYSTEM"
+    validate_boolean "rsync.checksum" "$RSYNC_CHECKSUM"
+    validate_boolean "rsync.sparse" "$RSYNC_SPARSE"
+    validate_boolean "rsync.whole_file" "$RSYNC_WHOLE_FILE"
+    validate_boolean "rsync.stats" "$RSYNC_STATS"
     validate_boolean "btrfs.scrub_after_backup" "$BTRFS_SCRUB"
     validate_boolean "btrfs.show_compression_stats" "$BTRFS_STATS"
     validate_boolean "safety.confirm_before_start" "$CONFIRM"
@@ -231,6 +279,10 @@ validate_config() {
     # Logical
     if [[ "$SNAP_ENABLED" == "true" ]] && [[ "$SNAP_KEEP" -lt 1 ]] 2>/dev/null; then
         validation_add_error "snapshots.retention should be at least 1 when snapshots are enabled"
+    fi
+
+    if [[ "$SNAP_MODE" != "backup-dir" ]] && [[ "$SNAP_MODE" != "link-dest" ]]; then
+        validation_add_error "snapshots.mode must be 'backup-dir' or 'link-dest' (got: $SNAP_MODE)"
     fi
 
     validation_check "$YAML_FILE"
@@ -258,24 +310,31 @@ validate_paths() {
 }
 
 # =============================================================================
-# SNAPSHOT FUNCTIONS
+# SNAPSHOT / TIMELINE FUNCTIONS
 # =============================================================================
+# List existing snapshot entries (BTRFS subvolumes or dated directories).
 list_snapshots() {
-    local source="$1"
-    local snap_dir="$source/$SNAP_DIR"
+    local dest="$1"
+    local snap_root="$dest/$SNAP_DIR"
 
-    if [[ ! -d "$snap_dir" ]]; then
+    if [[ ! -d "$snap_root" ]]; then
         echo "No snapshots found"
         return
     fi
 
-    echo "Snapshots in $snap_dir:"
-    find "$snap_dir" -maxdepth 1 -name "${SNAP_PREFIX}-*" 2>/dev/null | sort | while read -r snap; do
+    echo "Snapshots in $snap_root:"
+    find "$snap_root" -maxdepth 1 -mindepth 1 -name "${SNAP_PREFIX}-*" 2>/dev/null | sort | while read -r snap; do
         local name
         name=$(basename "$snap")
-        local size
-        size=$(btrfs subvolume show "$snap" 2>/dev/null | grep "Total" || echo "")
-        echo "  - $name $size"
+        if is_btrfs "$dest"; then
+            local info
+            info=$(btrfs subvolume show "$snap" 2>/dev/null | grep "Total" || echo "")
+            echo "  - $name $info"
+        else
+            local size
+            size=$(du -sh "$snap" 2>/dev/null | awk '{print $1}')
+            echo "  - $name (${size:-?})"
+        fi
     done
 }
 
@@ -299,6 +358,12 @@ perform_backup() {
     for exclude in $EXCLUDES; do
         rsync_opts+=("--exclude=$exclude")
     done
+
+    # Add timeline rsync args (non-BTRFS backup-dir mode); empty otherwise
+    if [[ "$SNAP_ENABLED" == "true" ]]; then
+        timeline_begin "$dest" "$SNAP_DIR" "$SNAP_PREFIX" "$SNAP_MODE"
+        rsync_opts+=("${TIMELINE_RSYNC_ARGS[@]}")
+    fi
 
     # Handle directories
     if [[ "$DIRECTORIES" == "/" ]] || [[ -z "$DIRECTORIES" ]]; then
@@ -346,7 +411,15 @@ print_summary() {
     echo -e "${C_CYAN}Directories:${C_NC} ${DIRECTORIES:-"/ (entire drive)"}"
     echo ""
     echo -e "${C_CYAN}Options:${C_NC}"
-    echo "  Snapshots:    $([[ "$SNAP_ENABLED" == "true" ]] && echo "✓ Enabled (keep $SNAP_KEEP)" || echo "✗ Disabled")"
+    local snap_info="✗ Disabled"
+    if [[ "$SNAP_ENABLED" == "true" ]]; then
+        if is_btrfs "$BACKUP_PATH"; then
+            snap_info="✓ Enabled (BTRFS subvolume, keep $SNAP_KEEP)"
+        else
+            snap_info="✓ Enabled (dated dirs, mode=$SNAP_MODE, keep $SNAP_KEEP)"
+        fi
+    fi
+    echo "  Snapshots:    $snap_info"
     echo "  Delete mode:  $([[ "$RSYNC_DELETE" == "true" ]] && echo "✓ Mirror (delete extra files)" || echo "✗ Additive only")"
     echo "  Dry run:      $([[ "$DRY_RUN" == "true" ]] && echo "✓ Yes (no changes)" || echo "✗ No")"
     echo "  Scrub:        $([[ "$BTRFS_SCRUB" == "true" ]] && echo "✓ After backup" || echo "✗ Skip")"
@@ -450,15 +523,14 @@ main() {
         fi
     fi
 
-    # Create snapshot if enabled
-    if [[ "$SNAP_ENABLED" == "true" ]]; then
-        log_section "Creating Snapshot"
-        btrfs_create_snapshot "$SOURCE_PATH" "$SNAP_DIR" "$SNAP_PREFIX"
-        btrfs_rotate_snapshots "$SOURCE_PATH/$SNAP_DIR" "$SNAP_PREFIX" "$SNAP_KEEP"
-    fi
-
-    # Perform backup
+    # Perform backup (rsync; timeline_begin injects --backup-dir if applicable)
     perform_backup "$SOURCE_PATH" "$BACKUP_PATH"
+
+    # Finalize destination snapshot / timeline (after successful rsync)
+    if [[ "$SNAP_ENABLED" == "true" ]] && [[ "$DRY_RUN" != "true" ]]; then
+        log_section "Finalizing Snapshot"
+        timeline_end "$BACKUP_PATH" "$SNAP_DIR" "$SNAP_PREFIX" "$SNAP_KEEP" "$SNAP_MODE"
+    fi
 
     # Run scrub if enabled
     if [[ "$BTRFS_SCRUB" == "true" ]]; then
@@ -480,7 +552,7 @@ main() {
 
     if [[ "$SNAP_ENABLED" == "true" ]]; then
         echo ""
-        list_snapshots "$SOURCE_PATH"
+        list_snapshots "$BACKUP_PATH"
     fi
 
     echo ""

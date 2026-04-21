@@ -1,0 +1,259 @@
+# ============================================================================
+# LOCAL BACKUP CONFIGURATION
+# ============================================================================
+# Configuration file for backup-local script.
+# Default location: ~/.config/backup/local.yml
+# ============================================================================
+
+# ============================================================================
+# BACKUP SETTINGS
+# ============================================================================
+backup:
+  # External backup HDD (already mounted automatically)
+  hdd_mount: /media/backup-hdd
+  backup_root: /media/backup-hdd/backups
+
+# ============================================================================
+# RSYNC OPTIONS
+# ============================================================================
+# Applies to paths using strategy: rsync (default). Archive paths are not
+# affected by these options.
+rsync:
+  # Delete files in destination not present in source
+  delete: true
+
+  # Show progress during transfer
+  progress: true
+
+  # Compress during transfer (not needed for local backup)
+  compress: false
+
+  # Preserve basic file attributes (-a = -rlptgoD: recursion, symlinks,
+  # perms, times, group, owner, devices). Note: -a does NOT include
+  # ACLs, xattrs or hard links — those are separate flags below.
+  archive: true
+
+  # Keep partial transfers on interruption (allows resuming)
+  partial: true
+
+  # Write updated data directly to destination file (no temp file)
+  # Saves disk space on drives with limited free space
+  inplace: false
+
+  # --- Metadata preservation (critical for system backup) ---
+
+  # Preserve POSIX ACLs (-A). Required to restore correct permissions
+  # on files using extended access control.
+  acls: true
+
+  # Preserve extended attributes (-X). Includes SELinux contexts,
+  # file capabilities, and user.* xattrs. Required for correct restore.
+  xattrs: true
+
+  # Preserve hard links (-H). /usr/bin and similar trees rely on them;
+  # without this, a copy of each inode is made, wasting space.
+  hard_links: true
+
+  # Keep numeric uid/gid instead of mapping by name (--numeric-ids).
+  # Required so that /etc/passwd differences don't remap ownership
+  # during restore.
+  numeric_ids: true
+
+  # Do not cross filesystem boundaries (-x). Belt-and-braces guard
+  # against accidentally aspirating /proc /sys /dev if exclusions
+  # are incomplete.
+  one_file_system: true
+
+  # --- Optional tuning ---
+
+  # Verify transfers by checksum instead of mtime+size (-c).
+  # CPU-heavy: rsync reads both sides entirely. Use for paranoid
+  # integrity verification, not routine backups.
+  checksum: false
+
+  # Efficiently handle sparse files (-S). Useful for VM images and
+  # swapfiles, but incompatible with --inplace.
+  sparse: false
+
+  # Skip delta-xfer algorithm (-W). For local-to-local backups this
+  # is often faster (no CPU spent diffing). Already default on when
+  # source and destination are both local.
+  whole_file: false
+
+  # Print transfer statistics summary at the end (--stats).
+  stats: false
+
+  # Bandwidth limit (--bwlimit). "0" or empty = unlimited. Accepts rsync
+  # syntax: plain number = kB/s, or suffix K/M/G (e.g. "50M" = 50 MB/s).
+  # Useful on USB-connected external disks to avoid saturating the bus
+  # or triggering thermal throttling on portable drives.
+  bwlimit: "0"
+
+# ============================================================================
+# BTRFS OPTIONS
+# ============================================================================
+btrfs:
+  # Run scrub after backup (integrity check, BTRFS only)
+  scrub_after_backup: false
+
+  # Show compression statistics after backup (BTRFS only)
+  show_compression_stats: false
+
+# ============================================================================
+# DESTINATION SNAPSHOTS / TIMELINE
+# ============================================================================
+# Keep a history of past backups on the destination. Applies only to paths
+# using strategy: rsync (archive paths already have a built-in dated history
+# through archive.retention).
+#
+# Dispatches automatically on the destination filesystem:
+#   BTRFS dest → native read-only subvolume snapshots (requires backup_root
+#                to be a BTRFS subvolume)
+#   Non-BTRFS  → dated directories under <directory>
+#
+# Non-BTRFS modes (ignored on BTRFS dest):
+#   backup-dir (default, SMR-friendly): rsync --backup-dir keeps only
+#              changed/deleted files in each dated dir. Space-efficient.
+#   link-dest: post-sync hardlink-copy of the full backup_root into the
+#              dated dir. Full point-in-time view, more metadata churn.
+snapshots:
+  enabled: false
+  directory: .snapshots
+  retention: 3
+  prefix: backup
+  mode: backup-dir
+
+# ============================================================================
+# PATHS TO BACKUP
+# ============================================================================
+# Each path entry defines a source to backup.
+#
+# Fields:
+#   name           - Identifier (used in logs, archive filenames)
+#   source         - Absolute path to backup
+#   dest_subdir    - Subdirectory name under backup_root
+#   enabled        - true/false to include in backup
+#   strategy       - "rsync" (default, incremental mirror) or
+#                    "archive" (tar.zst dated archives, SMR-friendly for
+#                    system paths with dispersed small files)
+#   btrfs_snapshot - (optional, rsync strategy) Create temporary read-only
+#                    source snapshot for consistency (requires BTRFS source)
+#   exclusions     - Patterns excluded from backup (rsync or tar syntax
+#                    depending on strategy)
+#   archive        - (archive strategy only) Archive-specific options
+#     compression_level: zstd level 1-19 (default: 10)
+#     retention       : number of dated archives to keep (default: 6)
+paths:
+  - name: root
+    source: /
+    dest_subdir: root
+    enabled: true
+    strategy: rsync
+    btrfs_snapshot: true
+    exclusions:
+      - /dev/*
+      - /proc/*
+      - /sys/*
+      - /tmp/*
+      - /run/*
+      - /mnt/*
+      - /media/*
+      - /lost+found
+      - /home/*
+      - .snapshots
+      - /var/tmp/*
+      - /var/cache/*
+      - /var/log/journal/*
+      - /var/lib/systemd/coredump/*
+      - /var/lib/docker/*
+      - /var/lib/containers/*
+      - /var/lib/flatpak/repo/*
+      - swapfile
+      - "*.swp"
+      - "*.lock"
+      - .nfs*
+
+  - name: home
+    source: /home
+    dest_subdir: home
+    enabled: true
+    strategy: rsync
+    exclusions:
+      - lost+found
+      - .cache
+      - .local/share/Trash
+      - .thumbnails
+      - .snapshots
+      - Downloads
+      - .mozilla/firefox/*/cache2
+      - .mozilla/firefox/*/storage/default/*/cache
+      - .config/google-chrome/*/Cache
+      - .config/chromium/*/Cache
+      - .var/app/*/cache
+      - .local/share/akonadi
+      - .local/share/baloo
+      - .local/share/containers
+      - .local/share/gvfs-metadata
+      - "*.tmp"
+      - "*.swp"
+      - .nfs*
+
+  # Example: SMR-friendly system archive (tar.zst, dated, rotated)
+  # Enable on SMR destinations where rsync of many small files is slow.
+  - name: etc-archive
+    source: /etc
+    dest_subdir: archives/etc
+    enabled: false
+    strategy: archive
+    archive:
+      compression_level: 10
+      retention: 6
+    exclusions:
+      - shadow-
+      - gshadow-
+      - "*.dpkg-old"
+      - "*.rpmsave"
+
+# ============================================================================
+# HOOKS
+# ============================================================================
+# Hooks are standalone scripts executed before or after the backup.
+# Each hook manages its own configuration internally (no config path passed).
+#
+# Fields:
+#   name         - Identifier (used in logs and confirmation prompt)
+#   script       - Absolute path to the hook script
+#   enabled      - true/false to activate this hook
+#   confirm      - true/false to prompt ui_confirm before running (skipped with --yes)
+#   run_as_user  - true/false to drop privileges to the invoking user (optional,
+#                  for hooks that don't need root and use user-installed commands)
+#
+# Execution order follows declaration order.
+# A failing hook logs a warning but does NOT stop the backup.
+#
+# Hook configuration locations:
+#   btrfs-save-structure → ~/.config/backup/hooks/btrfs-save-structure.yml
+#   bitwarden            → ~/.config/backup/bitwarden.yml
+#
+# Note: destination snapshots are handled by the built-in `snapshots:` section
+# above (BTRFS subvolume snapshots on BTRFS, dated directories otherwise).
+hooks:
+  pre_backup:
+    - name: btrfs-save-structure
+      script: /usr/local/lib/system-scripts/hooks.d/pre-backup/btrfs-save-structure.sh
+      enabled: true
+      confirm: true
+
+  post_backup:
+    - name: bitwarden
+      script: /usr/local/bin/backup-bitwarden
+      enabled: false
+      confirm: true
+      run_as_user: true
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  # Log file path (rotation managed by logrotate, see /etc/logrotate.d/backup-scripts)
+  file: /var/log/backup/backup-local.log

@@ -8,8 +8,8 @@
 #   - bitwarden-TIMESTAMP.encrypted.json (Bitwarden encrypted format)
 #
 # Module: backup
-# Requires: core, log, ui, yaml, validate, backup
-# Version: 0.1.0
+# Requires: core, log, ui, yaml, validate, fs
+# Version: 0.1.1
 #
 # Usage:
 #   backup-bitwarden [OPTIONS]
@@ -27,7 +27,7 @@ source "$LIB_DIR/log.sh"
 source "$LIB_DIR/ui.sh"
 source "$LIB_DIR/yaml.sh"
 source "$LIB_DIR/validate.sh"
-source "$LIB_DIR/backup.sh"
+source "$LIB_DIR/fs.sh"
 
 # =============================================================================
 # CONFIGURATION
@@ -66,7 +66,7 @@ usage() {
 ${C_BOLD}Bitwarden Backup Script v${VERSION}${C_NC}
 
 Export and encrypt Bitwarden vault for offline backup.
-Standalone script callable directly or via backup-system hooks.
+Standalone script callable directly or via backup-local hooks.
 
 ${C_GREEN}Usage:${C_NC}
     $SCRIPT_NAME [options]
@@ -112,7 +112,7 @@ load_config() {
     BW_RETENTION=$(parse_yaml "bitwarden.retention")
     BW_EXPORT_MODE=$(parse_yaml "bitwarden.export_mode")
 
-    # Logging (reuse backup-system log if available)
+    # Logging (reuse backup-local log if available)
     LOG_FILE=$(parse_yaml "logging.file")
 
     # Defaults

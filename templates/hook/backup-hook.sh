@@ -12,7 +12,7 @@
 #   sudo <hook-name>.sh [--dry-run] [-c <custom-config>]
 #
 # Usage (as hook):
-#   Called automatically by backup-system via hooks.<phase>[]
+#   Called automatically by backup-local via hooks.<phase>[]
 #   Receives BACKUP_ROOT, BACKUP_MOUNT, DRY_RUN via environment
 #   Uses config: ~/.config/backup/hooks/<hook-name>.yml
 #
@@ -48,7 +48,7 @@ REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 # Default config path (hook manages its own config internally)
 readonly DEFAULT_CONFIG="$REAL_HOME/.config/backup/hooks/<hook-name>.yml"
 
-# Inherit from parent script (backup-system exports these)
+# Inherit from parent script (backup-local exports these)
 BACKUP_ROOT="${BACKUP_ROOT:-}"
 DRY_RUN="${DRY_RUN:-false}"
 
@@ -70,7 +70,7 @@ ${C_GREEN}Options:${C_NC}
     --dry-run            Simulate without making changes
     -h, --help           Display this help
 
-${C_GREEN}Environment (set by backup-system):${C_NC}
+${C_GREEN}Environment (set by backup-local):${C_NC}
     BACKUP_ROOT          Backup destination root path
     BACKUP_MOUNT         HDD mount point
     DRY_RUN              true/false

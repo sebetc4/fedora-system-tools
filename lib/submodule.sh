@@ -514,7 +514,7 @@ submodule_install() {
     # --- Install configs (no_overwrite) ---
     _install_submodule_configs "$module_dir" "$submodule" "$module_yml"
 
-    # --- Install hooks (backup-system style) ---
+    # --- Install hooks (backup-local style) ---
     _install_submodule_hooks "$module_dir" "$submodule" "$module_yml"
 
     # --- Install logrotate config ---
@@ -1208,7 +1208,7 @@ _install_submodule_configs() {
     done
 }
 
-# Install hook scripts for a submodule (backup-system pattern)
+# Install hook scripts for a submodule (backup-local pattern)
 # Args: module_dir submodule_name module_yml
 _install_submodule_hooks() {
     local module_dir="$1"

@@ -7,7 +7,7 @@
 #
 # Module: lib
 # Requires: core (local source, not yet installed)
-# Version: 0.4.0
+# Version: 0.5.0
 #
 # Usage:
 #   sudo ./lib/install.sh          # Install lib + gum
@@ -51,7 +51,7 @@ install -m 644 "$LIB_DIR"/format.sh "$INSTALL_DIR/"
 install -m 644 "$LIB_DIR"/ui.sh "$INSTALL_DIR/"
 install -m 644 "$LIB_DIR"/yaml.sh "$INSTALL_DIR/"
 install -m 644 "$LIB_DIR"/validate.sh "$INSTALL_DIR/"
-install -m 644 "$LIB_DIR"/backup.sh "$INSTALL_DIR/"
+install -m 644 "$LIB_DIR"/fs.sh "$INSTALL_DIR/"
 install -m 644 "$LIB_DIR"/registry.sh "$INSTALL_DIR/"
 install -m 644 "$LIB_DIR"/notify.sh "$INSTALL_DIR/"
 install -m 644 "$LIB_DIR"/submodule.sh "$INSTALL_DIR/"

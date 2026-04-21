@@ -7,8 +7,8 @@
 # folder selections per drive.
 #
 # Module: backup
-# Requires: core, log, yaml, validate, backup
-# Version: 0.3.1
+# Requires: core, log, yaml, validate, fs, backup-lib
+# Version: 0.4.0
 #
 # Usage:
 #   sudo backup-hdd-both [OPTIONS]
@@ -20,12 +20,14 @@ set -euo pipefail
 # LIB LOADING
 # =============================================================================
 readonly LIB_DIR="/usr/local/lib/system-scripts"
+readonly BACKUP_LIB_DIR="/usr/local/lib/backup-scripts"
 
 source "$LIB_DIR/core.sh"
 source "$LIB_DIR/log.sh"
 source "$LIB_DIR/yaml.sh"
 source "$LIB_DIR/validate.sh"
-source "$LIB_DIR/backup.sh"
+source "$LIB_DIR/fs.sh"
+source "$BACKUP_LIB_DIR/backup-lib.sh"
 
 # =============================================================================
 # LOCK FILE
@@ -154,6 +156,9 @@ load_config() {
     SNAP1_PREFIX=$(parse_yaml "backup_drive_1.snapshots.prefix")
     [[ -z "$SNAP1_PREFIX" ]] && SNAP1_PREFIX="backup"
 
+    SNAP1_MODE=$(parse_yaml "backup_drive_1.snapshots.mode")
+    [[ -z "$SNAP1_MODE" ]] && SNAP1_MODE="backup-dir"
+
     SNAP2_ENABLED=$(parse_yaml "backup_drive_2.snapshots.enabled")
     [[ -z "$SNAP2_ENABLED" ]] && SNAP2_ENABLED="false"
 
@@ -165,6 +170,9 @@ load_config() {
 
     SNAP2_PREFIX=$(parse_yaml "backup_drive_2.snapshots.prefix")
     [[ -z "$SNAP2_PREFIX" ]] && SNAP2_PREFIX="backup"
+
+    SNAP2_MODE=$(parse_yaml "backup_drive_2.snapshots.mode")
+    [[ -z "$SNAP2_MODE" ]] && SNAP2_MODE="backup-dir"
 
     # Rsync
     RSYNC_DELETE=$(parse_yaml "rsync.delete")
@@ -184,6 +192,39 @@ load_config() {
 
     RSYNC_INPLACE=$(parse_yaml "rsync.inplace")
     [[ -z "$RSYNC_INPLACE" ]] && RSYNC_INPLACE="false"
+
+    # Metadata preservation (defaults OFF: data-only mirror)
+    RSYNC_ACLS=$(parse_yaml "rsync.acls")
+    [[ -z "$RSYNC_ACLS" ]] && RSYNC_ACLS="false"
+
+    RSYNC_XATTRS=$(parse_yaml "rsync.xattrs")
+    [[ -z "$RSYNC_XATTRS" ]] && RSYNC_XATTRS="false"
+
+    RSYNC_HARD_LINKS=$(parse_yaml "rsync.hard_links")
+    [[ -z "$RSYNC_HARD_LINKS" ]] && RSYNC_HARD_LINKS="false"
+
+    RSYNC_NUMERIC_IDS=$(parse_yaml "rsync.numeric_ids")
+    [[ -z "$RSYNC_NUMERIC_IDS" ]] && RSYNC_NUMERIC_IDS="false"
+
+    RSYNC_ONE_FILE_SYSTEM=$(parse_yaml "rsync.one_file_system")
+    [[ -z "$RSYNC_ONE_FILE_SYSTEM" ]] && RSYNC_ONE_FILE_SYSTEM="false"
+
+    # Optional tuning (defaults OFF)
+    RSYNC_CHECKSUM=$(parse_yaml "rsync.checksum")
+    [[ -z "$RSYNC_CHECKSUM" ]] && RSYNC_CHECKSUM="false"
+
+    RSYNC_SPARSE=$(parse_yaml "rsync.sparse")
+    [[ -z "$RSYNC_SPARSE" ]] && RSYNC_SPARSE="false"
+
+    RSYNC_WHOLE_FILE=$(parse_yaml "rsync.whole_file")
+    [[ -z "$RSYNC_WHOLE_FILE" ]] && RSYNC_WHOLE_FILE="false"
+
+    RSYNC_STATS=$(parse_yaml "rsync.stats")
+    [[ -z "$RSYNC_STATS" ]] && RSYNC_STATS="false"
+
+    # Bandwidth limit (string: "0"/"" = unlimited, or "50M", "100m", "10240" kB/s)
+    RSYNC_BWLIMIT=$(parse_yaml "rsync.bwlimit")
+    [[ -z "$RSYNC_BWLIMIT" ]] && RSYNC_BWLIMIT="0"
 
     # Btrfs
     BTRFS_SCRUB=$(parse_yaml "btrfs.scrub_after_backup")
@@ -231,6 +272,15 @@ validate_config() {
     validate_boolean "rsync.archive" "$RSYNC_ARCHIVE"
     validate_boolean "rsync.partial" "$RSYNC_PARTIAL"
     validate_boolean "rsync.inplace" "$RSYNC_INPLACE"
+    validate_boolean "rsync.acls" "$RSYNC_ACLS"
+    validate_boolean "rsync.xattrs" "$RSYNC_XATTRS"
+    validate_boolean "rsync.hard_links" "$RSYNC_HARD_LINKS"
+    validate_boolean "rsync.numeric_ids" "$RSYNC_NUMERIC_IDS"
+    validate_boolean "rsync.one_file_system" "$RSYNC_ONE_FILE_SYSTEM"
+    validate_boolean "rsync.checksum" "$RSYNC_CHECKSUM"
+    validate_boolean "rsync.sparse" "$RSYNC_SPARSE"
+    validate_boolean "rsync.whole_file" "$RSYNC_WHOLE_FILE"
+    validate_boolean "rsync.stats" "$RSYNC_STATS"
     validate_boolean "btrfs.scrub_after_backup" "$BTRFS_SCRUB"
     validate_boolean "btrfs.show_compression_stats" "$BTRFS_STATS"
     validate_boolean "safety.confirm_before_start" "$CONFIRM"
@@ -240,6 +290,14 @@ validate_config() {
     # Integers
     validate_integer "backup_drive_1.snapshots.retention" "$SNAP1_KEEP"
     validate_integer "backup_drive_2.snapshots.retention" "$SNAP2_KEEP"
+
+    # Snapshot modes
+    if [[ "$SNAP1_MODE" != "backup-dir" ]] && [[ "$SNAP1_MODE" != "link-dest" ]]; then
+        validation_add_error "backup_drive_1.snapshots.mode must be 'backup-dir' or 'link-dest' (got: $SNAP1_MODE)"
+    fi
+    if [[ "$SNAP2_MODE" != "backup-dir" ]] && [[ "$SNAP2_MODE" != "link-dest" ]]; then
+        validation_add_error "backup_drive_2.snapshots.mode must be 'backup-dir' or 'link-dest' (got: $SNAP2_MODE)"
+    fi
 
     # Paths
     validate_path "source.path" "$SOURCE_PATH"
@@ -328,7 +386,7 @@ get_drive_folders() {
 # =============================================================================
 backup_to_drive() {
     local drive_num="$1"
-    local backup_path backup_label snap_enabled snap_dir snap_prefix snap_keep
+    local backup_path backup_label snap_enabled snap_dir snap_prefix snap_keep snap_mode
 
     if [[ "$drive_num" == "1" ]]; then
         backup_path="$BACKUP1_PATH"
@@ -337,6 +395,7 @@ backup_to_drive() {
         snap_dir="$SNAP1_DIR"
         snap_prefix="$SNAP1_PREFIX"
         snap_keep="$SNAP1_KEEP"
+        snap_mode="$SNAP1_MODE"
     else
         backup_path="$BACKUP2_PATH"
         backup_label="$BACKUP2_LABEL"
@@ -344,15 +403,10 @@ backup_to_drive() {
         snap_dir="$SNAP2_DIR"
         snap_prefix="$SNAP2_PREFIX"
         snap_keep="$SNAP2_KEEP"
+        snap_mode="$SNAP2_MODE"
     fi
 
     log_section "BACKUP TO DRIVE $drive_num: $backup_label"
-
-    # Create snapshot if enabled
-    if [[ "$snap_enabled" == "true" ]]; then
-        btrfs_create_snapshot "$backup_path" "$snap_dir" "$snap_prefix"
-        btrfs_rotate_snapshots "$backup_path/$snap_dir" "$snap_prefix" "$snap_keep"
-    fi
 
     # Get folders to backup for this drive
     local folders
@@ -363,12 +417,22 @@ backup_to_drive() {
         return
     fi
 
-    # Build rsync options
-    local rsync_opts
-    rsync_opts=$(build_rsync_options)
-    rsync_opts+=" --stats"
-    local exclude_args
-    exclude_args=$(build_exclude_args "$EXCLUDES")
+    # Build rsync option array (safe for paths with spaces)
+    local rsync_opts=()
+    read -ra rsync_opts <<< "$(build_rsync_options)"
+    rsync_opts+=("--stats")
+
+    # Excludes
+    local excl
+    while IFS= read -r excl; do
+        [[ -n "$excl" ]] && rsync_opts+=("--exclude=$excl")
+    done <<< "$EXCLUDES"
+
+    # Timeline injection (non-BTRFS backup-dir mode adds --backup-dir args)
+    if [[ "$snap_enabled" == "true" ]]; then
+        timeline_begin "$backup_path" "$snap_dir" "$snap_prefix" "$snap_mode"
+        rsync_opts+=("${TIMELINE_RSYNC_ARGS[@]}")
+    fi
 
     # Backup each folder
     while IFS= read -r folder; do
@@ -384,10 +448,14 @@ backup_to_drive() {
 
         mkdir -p "$dst"
 
-        # shellcheck disable=SC2086  # intentional word-splitting
-        eval rsync $rsync_opts $exclude_args "$src" "$dst"
+        rsync "${rsync_opts[@]}" "$src" "$dst"
 
     done <<< "$folders"
+
+    # Finalize snapshot / timeline on destination (after rsync success)
+    if [[ "$snap_enabled" == "true" ]] && [[ "${DRY_RUN:-false}" != "true" ]]; then
+        timeline_end "$backup_path" "$snap_dir" "$snap_prefix" "$snap_keep" "$snap_mode"
+    fi
 
     log_success "Drive $drive_num backup complete"
 }

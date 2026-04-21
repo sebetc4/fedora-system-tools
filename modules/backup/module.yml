@@ -1,43 +1,46 @@
 # modules/backup/module.yml
 name: backup
-version: 0.1.0
-min_lib_version: 0.4.0
+version: 0.2.0
+min_lib_version: 0.5.0
 description: "Backup scripts (system, HDD, Bitwarden, VPS)"
 type: system
 
 submodules:
   core:
-    version: 0.1.0
-    description: "Backup shared setup (log directory, logrotate)"
+    version: 0.2.0
+    description: "Backup shared setup (backup-lib, log dir, logrotate)"
+    hooks:
+      install: shared/setup-backup.sh
+      uninstall: shared/cleanup-backup.sh
     logrotate: logrotate/backup-scripts
     dirs:
       - path: /var/log/backup
         mode: "755"
 
-  system:
-    version: 0.1.1
-    description: "System backup with rsync + hooks"
-    source: system/backup.sh
-    bin_name: backup-system
+  local:
+    version: 0.2.0
+    description: "Local machine backup (rsync mirror + tar.zst archives)"
+    source: local/backup.sh
+    bin_name: backup-local
     deps:
       - core
     configs:
-      - source: system/config.yml
-        dest: ~/.config/backup/system.yml
+      - source: local/config.yml
+        dest: ~/.config/backup/local.yml
         no_overwrite: true
     hooks:
-      install: system/hooks.d
-      hooks_config: system/hooks-config
+      install: local/hooks.d
+      hooks_config: local/hooks-config
     system_deps:
       - yq
       - rsync
     notifications:
-      - tag: notify-backup-system
+      - tag: notify-backup-local
         icon: drive-harddisk
         level: important
 
   hdd:
-    version: 0.3.1
+    version: 0.4.0
     description: "Simple HDD to HDD mirror backup"
     source: hdd-to-hdd/backup.sh
     bin_name: backup-hdd
@@ -55,7 +58,7 @@ submodules:
         level: important
 
   hdd-both:
-    version: 0.3.1
+    version: 0.4.0
     description: "Split backup across two drives"
     source: hdd-to-both-hdd/backup.sh
     bin_name: backup-hdd-both
@@ -73,7 +76,7 @@ submodules:
         level: important
 
   bitwarden:
-    version: 0.1.0
+    version: 0.1.1
     description: "Bitwarden vault backup"
     source: bitwarden/backup-bitwarden.sh
     bin_name: backup-bitwarden

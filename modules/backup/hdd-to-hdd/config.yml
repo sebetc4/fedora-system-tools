@@ -32,23 +32,7 @@ exclude:
   - ".Trash-*"
   - "lost+found"
   - ".snapshots"
-
-# ============================================================================
-# SNAPSHOT OPTIONS (Optional)
-# ============================================================================
-# BTRFS snapshots of source drive before backup
-snapshots:
-  # Enable/disable snapshots before backup
-  enabled: false
-
-  # Where to store snapshots (relative to source path)
-  directory: ".snapshots"
-
-  # Number of snapshots to keep (older ones auto-deleted)
-  retention: 3
-
-  # Snapshot naming format (date will be appended)
-  prefix: "backup"
+  - ".versions"
 
 # ============================================================================
 # RSYNC OPTIONS
@@ -63,7 +47,8 @@ rsync:
   # Compress during transfer (not needed for local backup)
   compress: false
 
-  # Preserve all attributes
+  # Preserve basic file attributes (-a = -rlptgoD). Does NOT include
+  # ACLs, xattrs, or hard links — those are separate flags below.
   archive: true
 
   # Keep partial transfers on interruption (allows resuming)
@@ -73,15 +58,91 @@ rsync:
   # Saves disk space on drives with limited free space
   inplace: false
 
+  # --- Metadata preservation ---
+  # Defaults ON to preserve integrity when chained after backup-local
+  # (backup-local → hdd1 → backup1). Safe to leave ON for pure-data
+  # mirrors too (rsync no-ops when source has no ACL/xattr/hardlink).
+  # Disable only if you explicitly want a data-only mirror.
+
+  # Preserve POSIX ACLs (-A)
+  acls: true
+
+  # Preserve extended attributes (-X): SELinux contexts, capabilities, user.*
+  # CRITICAL if the source contains a system backup — without this,
+  # SELinux contexts are lost and the restore needs a full relabel.
+  xattrs: true
+
+  # Preserve hard links (-H). Without this, hardlinked files are
+  # duplicated → wasted space + broken links at restore.
+  hard_links: true
+
+  # Keep numeric uid/gid (--numeric-ids). Safety net for restore on
+  # a system where /etc/passwd differs.
+  numeric_ids: true
+
+  # Do not cross filesystem boundaries (-x). Off by default: not
+  # usually relevant when mirroring a data disk (no nested mounts).
+  one_file_system: false
+
+  # --- Optional tuning ---
+
+  # Verify transfers by checksum instead of mtime+size (-c).
+  # CPU-heavy: rsync reads both sides entirely.
+  checksum: false
+
+  # Efficiently handle sparse files (-S). Incompatible with --inplace.
+  sparse: false
+
+  # Skip delta-xfer algorithm (-W). Often faster for local-to-local.
+  whole_file: false
+
+  # Print transfer statistics summary at the end (--stats)
+  stats: false
+
+  # Bandwidth limit (--bwlimit). "0" or empty = unlimited. Accepts rsync
+  # syntax: plain number = kB/s, or suffix K/M/G (e.g. "50M" = 50 MB/s).
+  # Useful on USB-connected external disks to cap throughput.
+  bwlimit: "0"
+
 # ============================================================================
 # BTRFS OPTIONS
 # ============================================================================
 btrfs:
-  # Run scrub after backup (integrity check)
+  # Run scrub after backup (integrity check, BTRFS only)
   scrub_after_backup: false
 
-  # Show compression statistics after backup
+  # Show compression statistics after backup (BTRFS only)
   show_compression_stats: false
+
+# ============================================================================
+# DESTINATION SNAPSHOTS / TIMELINE
+# ============================================================================
+# Keep a history of past backups on the destination drive.
+#
+# Behavior dispatches automatically on the destination filesystem:
+#   - BTRFS dest → native read-only subvolume snapshots
+#   - Non-BTRFS (ext4, xfs, …) → dated directories under <snapshots.directory>
+#
+# Non-BTRFS modes (ignored on BTRFS dest):
+#   backup-dir  (default, SMR-friendly): rsync --backup-dir keeps only
+#               changed/deleted files in each dated dir. Space-efficient.
+#   link-dest : post-sync hardlink-copy of the full dest into the dated dir.
+#               Full point-in-time view, more metadata churn (SMR-hostile).
+snapshots:
+  # Enable/disable snapshots
+  enabled: false
+
+  # Where to store snapshots (relative to backup path)
+  directory: ".snapshots"
+
+  # Number of snapshots to keep (older ones auto-deleted)
+  retention: 3
+
+  # Snapshot naming format (date will be appended)
+  prefix: "backup"
+
+  # Non-BTRFS versioning mode: backup-dir | link-dest
+  mode: backup-dir
 
 # ============================================================================
 # LOGGING

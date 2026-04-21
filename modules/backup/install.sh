@@ -2,7 +2,7 @@
 # =============================================================================
 # BACKUP INSTALL - Backup module orchestrator
 # =============================================================================
-# Installs backup submodules: system, hdd, hdd-both, bitwarden, vps.
+# Installs backup submodules: local, hdd, hdd-both, bitwarden, vps.
 #
 # Supports interactive multi-select and CLI flags:
 #   --all         Install all submodules (non-interactive)
@@ -10,7 +10,7 @@
 #
 # Module: backup
 # Requires: core, registry, submodule, ui
-# Version: 0.1.0
+# Version: 0.2.0
 #
 # Usage:
 #   sudo ./modules/backup/install.sh

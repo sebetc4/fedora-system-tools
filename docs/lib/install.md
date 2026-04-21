@@ -22,7 +22,7 @@ sudo ./lib/install.sh --no-gum # Install lib only (bash fallback mode)
 
 Copies all 13 lib modules to `/usr/local/lib/system-scripts/` with mode `644`:
 
-`core.sh`, `log.sh`, `config.sh`, `format.sh`, `ui.sh`, `yaml.sh`, `validate.sh`, `backup.sh`, `registry.sh`, `notify.sh`, `submodule.sh`, `paths.sh`, `color.sh`
+`core.sh`, `log.sh`, `config.sh`, `format.sh`, `ui.sh`, `yaml.sh`, `validate.sh`, `fs.sh`, `registry.sh`, `notify.sh`, `submodule.sh`, `paths.sh`, `color.sh`
 
 ### 2. Install Gum
 

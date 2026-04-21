@@ -12,9 +12,9 @@ modules/backup/
 ├── uninstall.sh                        Orchestrator (deps-aware ordering)
 ├── logrotate/
 │   └── backup-scripts                  System-level log rotation
-├── system/                             System backup (rsync + hooks)
-│   ├── backup.sh                       → /usr/local/bin/backup-system
-│   ├── config.yml                      → ~/.config/backup/system.yml
+├── local/                              Local backup (rsync + hooks)
+│   ├── backup.sh                       → /usr/local/bin/backup-local
+│   ├── config.yml                      → ~/.config/backup/local.yml
 │   ├── hooks.d/pre-backup/             Hook scripts
 │   └── hooks-config/                   Hook configs
 ├── hdd-to-hdd/                         Simple HDD mirror
@@ -40,7 +40,7 @@ modules/backup/
 | Submodule | Binary | Type | Purpose | Deps |
 |-----------|--------|------|---------|------|
 | **core** | — | system | Shared log dir + logrotate | — |
-| **system** | `backup-system` | system | Rsync backup with hook system | core, yq, rsync |
+| **local** | `backup-local` | system | Rsync backup with hook system | core, yq, rsync |
 | **hdd** | `backup-hdd` | system | Simple 1:1 HDD mirror | core, yq, rsync |
 | **hdd-both** | `backup-hdd-both` | system | Split backup across 2 drives | core, yq, rsync |
 | **bitwarden** | `backup-bitwarden` | system | Vault export with age encryption | core, age, jq, bw |
@@ -53,13 +53,13 @@ to `~/.local/bin`, uses user systemd units, and registers in the user registry.
 
 ---
 
-## System backup — `backup-system`
+## Local backup — `backup-local`
 
 Full rsync backup with YAML config and pluggable hook system.
 
 ```bash
-sudo backup-system [OPTIONS]
-  -c, --config <file>    Config file (default: ~/.config/backup/system.yml)
+sudo backup-local [OPTIONS]
+  -c, --config <file>    Config file (default: ~/.config/backup/local.yml)
   -n, --dry-run          Simulate backup
   -y, --yes              Skip hook confirmations
   --scrub                BTRFS scrub after backup
@@ -67,7 +67,7 @@ sudo backup-system [OPTIONS]
   -h, --help             Show help
 ```
 
-### Configuration — `system.yml`
+### Configuration — `local.yml`
 
 ```yaml
 backup:
@@ -75,7 +75,7 @@ backup:
   backup_root: /media/hdd1/backups
 
 paths:
-  - name: system
+  - name: root
     source: /
     dest_subdir: root
     enabled: true
@@ -95,11 +95,6 @@ hooks:
       enabled: true
       confirm: true
 
-    - name: btrfs-snapshot
-      script: /usr/local/lib/system-scripts/hooks.d/pre-backup/btrfs-snapshot.sh
-      enabled: true
-      confirm: true
-
   post_backup:
     - name: bitwarden
       script: /usr/local/bin/backup-bitwarden
@@ -108,7 +103,7 @@ hooks:
       run_as_user: true             # Drop sudo for this hook
 
 logging:
-  file: /var/log/backup/backup-system.log
+  file: /var/log/backup/backup-local.log
 
 advanced:
   rsync_options: "-aAXHv --info=progress2 --no-xattrs --partial --timeout=300"
@@ -130,12 +125,15 @@ Hooks are standalone scripts that run before (`pre_backup`) or after
 | Hook | Phase | Purpose |
 |------|-------|---------|
 | `btrfs-save-structure` | pre | Document BTRFS layout for disaster recovery |
-| `btrfs-snapshot` | pre | Create read-only snapshot of backup state |
 | `backup-bitwarden` | post | Export Bitwarden vault (optional) |
+
+Destination snapshots (versioned history of the backup itself) are handled
+by the built-in `snapshots:` config section — native BTRFS subvolume snapshots
+on BTRFS destinations, dated directories otherwise.
 
 ### Lock file
 
-`/run/lock/backup-system.lock` prevents concurrent runs.
+`/run/lock/backup-local.lock` prevents concurrent runs.
 
 ---
 
@@ -274,7 +272,7 @@ bitwarden:
 5. Rotate old exports (keep N per `retention`)
 6. Cleanup: shred all temporary files (trap handler)
 
-Can also run as a **post-backup hook** for `backup-system` with
+Can also run as a **post-backup hook** for `backup-local` with
 `run_as_user: true`. No confirmation prompt — handled by the caller.
 
 ### Initial setup
@@ -350,10 +348,10 @@ Per-user logrotate config generated from template at install time:
 
 | Submodule | Log file |
 |-----------|----------|
-| system | `/var/log/backup/backup-system.log` |
+| local | `/var/log/backup/backup-local.log` |
 | hdd | `/var/log/backup/backup-hdd.log` |
 | hdd-both | `/var/log/backup/backup-hdd-both.log` |
-| bitwarden | (uses backup-system log when called as hook) |
+| bitwarden | (uses backup-local log when called as hook) |
 | vps | `~/.local/log/backup-vps/backup-vps.log` |
 
 System logs rotated by `/etc/logrotate.d/backup-scripts` (core submodule).
@@ -364,7 +362,7 @@ All scripts use `logger -t notify-<tag>` for desktop notifications:
 
 | Tag | Submodule |
 |-----|-----------|
-| `notify-backup-system` | system |
+| `notify-backup-local` | local |
 | `notify-backup-hdd` | hdd |
 | `notify-backup-hdd-both` | hdd-both |
 | `notify-backup-vps` | vps |
@@ -378,7 +376,7 @@ Interactive multi-select or `--all` / `--only <names>`:
 ```bash
 sudo ./modules/backup/install.sh
 sudo ./modules/backup/install.sh --all
-sudo ./modules/backup/install.sh --only system,vps
+sudo ./modules/backup/install.sh --only local,vps
 ```
 
 Config files are installed with no-overwrite (preserves existing user configs).

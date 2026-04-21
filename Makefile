@@ -183,9 +183,8 @@ shellcheck:
 		modules/nautilus/scripts/*.sh modules/nautilus/install.sh modules/nautilus/uninstall.sh \
 		modules/firewall/scripts/*.sh modules/firewall/install.sh modules/firewall/uninstall.sh \
 		modules/backup/install.sh modules/backup/uninstall.sh \
-		modules/backup/system/backup.sh \
-		modules/backup/system/hooks.d/pre-backup/btrfs-save-structure.sh \
-		modules/backup/system/hooks.d/pre-backup/btrfs-snapshot.sh \
+		modules/backup/local/backup.sh \
+		modules/backup/local/hooks.d/pre-backup/btrfs-save-structure.sh \
 		modules/backup/hdd-to-hdd/backup.sh \
 		modules/backup/hdd-to-both-hdd/backup.sh \
 		modules/backup/bitwarden/backup-bitwarden.sh \

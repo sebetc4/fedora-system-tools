@@ -24,7 +24,7 @@ The installer supports Fedora/RHEL (dnf) and Debian/Ubuntu (apt) for automatic G
 | [ui.sh](#uish) | Interactive Gum UI + bash fallback |
 | [yaml.sh](#yamlsh) | YAML parsing via yq |
 | [validate.sh](#validatesh) | Configuration validation with error accumulation |
-| [backup.sh](#backupsh) | Backup utilities: BTRFS, rsync, filesystem helpers |
+| [fs.sh](#fssh) | Filesystem helpers: mount/BTRFS detection, disk usage, sudo-aware user |
 
 ## Quick Start
 
@@ -372,9 +372,9 @@ validation_check "config.yml"
 
 ---
 
-## backup.sh
+## fs.sh
 
-Shared utilities for backup scripts: filesystem checks, BTRFS operations, and rsync helpers.
+Generic filesystem utilities: mount checks, BTRFS detection, disk usage, and sudo-aware user/home resolution.
 
 > Depends on: core.sh, log.sh
 
@@ -393,34 +393,9 @@ get_disk_usage "/mnt/hdd1"               # "Used: 1.2T / 2.0T (60%)"
 check_disk_space "/source" "/dest"       # Warns if destination >90% full
 ```
 
-### BTRFS Operations
+### Backup-specific helpers
 
-```bash
-btrfs_create_snapshot "/mnt/hdd1" ".snapshots" "backup"
-# Creates: /mnt/hdd1/.snapshots/backup-20260211-143022
-
-btrfs_rotate_snapshots "/mnt/hdd1/.snapshots" "backup" 3
-# Keeps 3 most recent, deletes the rest
-
-btrfs_run_scrub "/mnt/hdd1" "Backup HDD"
-# Blocking integrity check with dry-run support
-
-btrfs_show_stats "/mnt/hdd1" "Backup HDD"
-# Compression stats via compsize (or btrfs filesystem df fallback)
-```
-
-### Rsync Helpers
-
-```bash
-rsync_safe -aAXHv --delete /source/ /dest/
-# Tolerates exit codes 23 (partial) and 24 (vanished files)
-
-opts=$(build_rsync_options)
-# Builds options from globals: RSYNC_ARCHIVE, RSYNC_DELETE, RSYNC_PROGRESS, RSYNC_COMPRESS, DRY_RUN
-
-exclude_args=$(build_exclude_args "$EXCLUDES")
-# Converts newline-separated patterns to --exclude=... arguments
-```
+BTRFS operations, rsync helpers, the FS-agnostic destination timeline, and tar.zst archives live in the **backup module's own library**, not in `lib/`. See [`docs/modules/backup/backup-lib.md`](../modules/backup/backup-lib.md).
 
 ---
 
@@ -435,7 +410,7 @@ lib/
 ├── ui.sh           # Gum UI + fallback (depends on core.sh)
 ├── yaml.sh         # YAML parsing (depends on core.sh)
 ├── validate.sh     # Config validation (depends on core.sh)
-├── backup.sh       # Backup utilities (depends on core.sh, log.sh)
+├── fs.sh           # Filesystem helpers (depends on core.sh, log.sh)
 ├── install.sh      # Installation script
 └── README.md       # This documentation
 ```
@@ -443,7 +418,7 @@ lib/
 ### Module Dependencies
 
 ```
-core.sh ←── log.sh ←── backup.sh
+core.sh ←── log.sh ←── fs.sh
         ←── config.sh
         ←── ui.sh
         ←── yaml.sh

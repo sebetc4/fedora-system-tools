@@ -1,17 +1,21 @@
 #!/bin/bash
 # shellcheck disable=SC2317,SC2329
 # =============================================================================
-# BACKUP-SYSTEM - Full system backup to external HDD
+# BACKUP-LOCAL - Local machine backup to external HDD
 # =============================================================================
-# Dynamic rsync backup driven by config: paths with exclusions, pre/post
-# hooks for extensibility (BTRFS, Bitwarden, custom scripts).
+# Dynamic backup driven by config with per-path strategy selection:
+#   - rsync   : incremental mirror (default, good for home/projects)
+#   - archive : tar.zst dated archives (SMR-friendly for system paths)
+#
+# Cross-filesystem destination support: BTRFS snapshots on BTRFS, dated
+# directory timelines on ext4/xfs/other. Pre/post hooks for extensibility.
 #
 # Module: backup
-# Requires: core, log, ui, yaml, validate, backup
-# Version: 0.1.1
+# Requires: core, log, ui, yaml, validate, fs, backup-lib
+# Version: 0.2.0
 #
 # Usage:
-#   sudo backup-system [OPTIONS]
+#   sudo backup-local [OPTIONS]
 #
 # Options:
 #   -c, --config <file>  Configuration file
@@ -28,28 +32,30 @@ set -euo pipefail
 # LIB LOADING
 # =============================================================================
 readonly LIB_DIR="/usr/local/lib/system-scripts"
+readonly BACKUP_LIB_DIR="/usr/local/lib/backup-scripts"
 
 source "$LIB_DIR/core.sh"
 source "$LIB_DIR/log.sh"
 source "$LIB_DIR/ui.sh"
 source "$LIB_DIR/yaml.sh"
 source "$LIB_DIR/validate.sh"
-source "$LIB_DIR/backup.sh"
+source "$LIB_DIR/fs.sh"
+source "$BACKUP_LIB_DIR/backup-lib.sh"
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-readonly VERSION="0.1.0"
+readonly VERSION="0.2.0"
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
 
 detect_real_user
 
-readonly DEFAULT_CONFIG_FILE="$REAL_HOME/.config/backup/system.yml"
-readonly LOCK_FILE="/run/lock/backup-system.lock"
+readonly DEFAULT_CONFIG_FILE="$REAL_HOME/.config/backup/local.yml"
+readonly LOCK_FILE="/run/lock/backup-local.lock"
 
 # Logger tag for notify-daemon integration
-readonly LOG_TAG="notify-backup-system"
+readonly LOG_TAG="notify-backup-local"
 
 # shellcheck disable=SC2034  # used by log.sh for timestamp formatting
 LOG_TIMESTAMP_FMT="%Y-%m-%d %H:%M:%S"
@@ -58,7 +64,7 @@ LOG_TIMESTAMP_FMT="%Y-%m-%d %H:%M:%S"
 # NOTIFICATIONS (via notify-daemon / logger)
 # =============================================================================
 # Filtering is handled by notify-daemon based on the tag's level in levels.conf.
-# Use: notify-manage level notify-backup-system [all|important|none]
+# Use: notify-manage level notify-backup-local [all|important|none]
 send_notification() {
     local type="$1"     # "success" or "error"
     local title="$2"
@@ -131,18 +137,88 @@ load_config() {
 
     YAML_FILE="$config_file"
 
-    # Load configuration
+    # Backup paths
     BACKUP_MOUNT=$(parse_yaml "backup.hdd_mount")
     BACKUP_ROOT=$(parse_yaml "backup.backup_root")
 
     # Logging
     LOG_FILE=$(parse_yaml "logging.file")
+    [[ -z "$LOG_FILE" ]] && LOG_FILE="/var/log/backup/backup-local.log"
 
-    # Advanced options
-    RSYNC_OPTIONS=$(parse_yaml "advanced.rsync_options")
+    # Rsync (structured, aligned with hdd-to-hdd / hdd-to-both-hdd)
+    RSYNC_DELETE=$(parse_yaml "rsync.delete")
+    [[ -z "$RSYNC_DELETE" ]] && RSYNC_DELETE="true"
 
-    # Set defaults if empty
-    [[ -z "$LOG_FILE" ]] && LOG_FILE="/var/log/backup/backup-system.log"
+    RSYNC_PROGRESS=$(parse_yaml "rsync.progress")
+    [[ -z "$RSYNC_PROGRESS" ]] && RSYNC_PROGRESS="true"
+
+    RSYNC_COMPRESS=$(parse_yaml "rsync.compress")
+    [[ -z "$RSYNC_COMPRESS" ]] && RSYNC_COMPRESS="false"
+
+    RSYNC_ARCHIVE=$(parse_yaml "rsync.archive")
+    [[ -z "$RSYNC_ARCHIVE" ]] && RSYNC_ARCHIVE="true"
+
+    RSYNC_PARTIAL=$(parse_yaml "rsync.partial")
+    [[ -z "$RSYNC_PARTIAL" ]] && RSYNC_PARTIAL="true"
+
+    RSYNC_INPLACE=$(parse_yaml "rsync.inplace")
+    [[ -z "$RSYNC_INPLACE" ]] && RSYNC_INPLACE="false"
+
+    # System-backup-critical metadata (defaults ON for backup-local)
+    RSYNC_ACLS=$(parse_yaml "rsync.acls")
+    [[ -z "$RSYNC_ACLS" ]] && RSYNC_ACLS="true"
+
+    RSYNC_XATTRS=$(parse_yaml "rsync.xattrs")
+    [[ -z "$RSYNC_XATTRS" ]] && RSYNC_XATTRS="true"
+
+    RSYNC_HARD_LINKS=$(parse_yaml "rsync.hard_links")
+    [[ -z "$RSYNC_HARD_LINKS" ]] && RSYNC_HARD_LINKS="true"
+
+    RSYNC_NUMERIC_IDS=$(parse_yaml "rsync.numeric_ids")
+    [[ -z "$RSYNC_NUMERIC_IDS" ]] && RSYNC_NUMERIC_IDS="true"
+
+    RSYNC_ONE_FILE_SYSTEM=$(parse_yaml "rsync.one_file_system")
+    [[ -z "$RSYNC_ONE_FILE_SYSTEM" ]] && RSYNC_ONE_FILE_SYSTEM="true"
+
+    # Optional tuning (defaults OFF)
+    RSYNC_CHECKSUM=$(parse_yaml "rsync.checksum")
+    [[ -z "$RSYNC_CHECKSUM" ]] && RSYNC_CHECKSUM="false"
+
+    RSYNC_SPARSE=$(parse_yaml "rsync.sparse")
+    [[ -z "$RSYNC_SPARSE" ]] && RSYNC_SPARSE="false"
+
+    RSYNC_WHOLE_FILE=$(parse_yaml "rsync.whole_file")
+    [[ -z "$RSYNC_WHOLE_FILE" ]] && RSYNC_WHOLE_FILE="false"
+
+    RSYNC_STATS=$(parse_yaml "rsync.stats")
+    [[ -z "$RSYNC_STATS" ]] && RSYNC_STATS="false"
+
+    # Bandwidth limit (string: "0"/"" = unlimited, or "50M", "100m", "10240" kB/s)
+    RSYNC_BWLIMIT=$(parse_yaml "rsync.bwlimit")
+    [[ -z "$RSYNC_BWLIMIT" ]] && RSYNC_BWLIMIT="0"
+
+    # BTRFS options
+    BTRFS_SCRUB_CFG=$(parse_yaml "btrfs.scrub_after_backup")
+    [[ -z "$BTRFS_SCRUB_CFG" ]] && BTRFS_SCRUB_CFG="false"
+
+    BTRFS_STATS_CFG=$(parse_yaml "btrfs.show_compression_stats")
+    [[ -z "$BTRFS_STATS_CFG" ]] && BTRFS_STATS_CFG="false"
+
+    # Destination snapshots / timeline
+    SNAP_ENABLED=$(parse_yaml "snapshots.enabled")
+    [[ -z "$SNAP_ENABLED" ]] && SNAP_ENABLED="false"
+
+    SNAP_DIR=$(parse_yaml "snapshots.directory")
+    [[ -z "$SNAP_DIR" ]] && SNAP_DIR=".snapshots"
+
+    SNAP_KEEP=$(parse_yaml "snapshots.retention")
+    [[ -z "$SNAP_KEEP" ]] && SNAP_KEEP=3
+
+    SNAP_PREFIX=$(parse_yaml "snapshots.prefix")
+    [[ -z "$SNAP_PREFIX" ]] && SNAP_PREFIX="backup"
+
+    SNAP_MODE=$(parse_yaml "snapshots.mode")
+    [[ -z "$SNAP_MODE" ]] && SNAP_MODE="backup-dir"
 
     # Open log file descriptor
     log_open_fd
@@ -164,16 +240,41 @@ validate_config() {
     validate_path "backup.backup_root" "$BACKUP_ROOT"
     validate_path "logging.file" "$LOG_FILE"
 
+    # Rsync / BTRFS / snapshots booleans
+    validate_boolean "rsync.delete" "$RSYNC_DELETE"
+    validate_boolean "rsync.progress" "$RSYNC_PROGRESS"
+    validate_boolean "rsync.compress" "$RSYNC_COMPRESS"
+    validate_boolean "rsync.archive" "$RSYNC_ARCHIVE"
+    validate_boolean "rsync.partial" "$RSYNC_PARTIAL"
+    validate_boolean "rsync.inplace" "$RSYNC_INPLACE"
+    validate_boolean "rsync.acls" "$RSYNC_ACLS"
+    validate_boolean "rsync.xattrs" "$RSYNC_XATTRS"
+    validate_boolean "rsync.hard_links" "$RSYNC_HARD_LINKS"
+    validate_boolean "rsync.numeric_ids" "$RSYNC_NUMERIC_IDS"
+    validate_boolean "rsync.one_file_system" "$RSYNC_ONE_FILE_SYSTEM"
+    validate_boolean "rsync.checksum" "$RSYNC_CHECKSUM"
+    validate_boolean "rsync.sparse" "$RSYNC_SPARSE"
+    validate_boolean "rsync.whole_file" "$RSYNC_WHOLE_FILE"
+    validate_boolean "rsync.stats" "$RSYNC_STATS"
+    validate_boolean "btrfs.scrub_after_backup" "$BTRFS_SCRUB_CFG"
+    validate_boolean "btrfs.show_compression_stats" "$BTRFS_STATS_CFG"
+    validate_boolean "snapshots.enabled" "$SNAP_ENABLED"
+    validate_integer "snapshots.retention" "$SNAP_KEEP"
+    if [[ "$SNAP_MODE" != "backup-dir" ]] && [[ "$SNAP_MODE" != "link-dest" ]]; then
+        validation_add_error "snapshots.mode must be 'backup-dir' or 'link-dest' (got: $SNAP_MODE)"
+    fi
+
     # Validate paths[] entries
     local path_count
     path_count=$(parse_yaml_count "paths")
 
     for ((i=0; i<path_count; i++)); do
-        local p_name p_source p_dest p_enabled p_btrfs_snap
+        local p_name p_source p_dest p_enabled p_strategy p_btrfs_snap
         p_name=$(parse_yaml_index "paths" "$i" "name")
         p_source=$(parse_yaml_index "paths" "$i" "source")
         p_dest=$(parse_yaml_index "paths" "$i" "dest_subdir")
         p_enabled=$(parse_yaml_index "paths" "$i" "enabled")
+        p_strategy=$(parse_yaml_index "paths" "$i" "strategy")
         p_btrfs_snap=$(parse_yaml_index "paths" "$i" "btrfs_snapshot")
 
         validate_required "paths[$i].name" "$p_name"
@@ -181,6 +282,21 @@ validate_config() {
         [[ -n "$p_source" ]] && validate_path "paths[$i].source" "$p_source"
         [[ -n "$p_enabled" ]] && validate_boolean "paths[$i].enabled" "$p_enabled"
         [[ -n "$p_btrfs_snap" ]] && validate_boolean "paths[$i].btrfs_snapshot" "$p_btrfs_snap"
+
+        # Strategy: default "rsync", must be rsync|archive
+        [[ -z "$p_strategy" ]] && p_strategy="rsync"
+        if [[ "$p_strategy" != "rsync" ]] && [[ "$p_strategy" != "archive" ]]; then
+            validation_add_error "paths[$i].strategy must be 'rsync' or 'archive' (got: $p_strategy, path: $p_name)"
+        fi
+
+        # Archive strategy: validate archive sub-options
+        if [[ "$p_strategy" == "archive" ]] && [[ "$p_enabled" == "true" ]]; then
+            local a_level a_retention
+            a_level=$(parse_yaml_index "paths" "$i" "archive.compression_level")
+            a_retention=$(parse_yaml_index "paths" "$i" "archive.retention")
+            [[ -n "$a_level" ]] && validate_integer "paths[$i].archive.compression_level" "$a_level"
+            [[ -n "$a_retention" ]] && validate_integer "paths[$i].archive.retention" "$a_retention"
+        fi
 
         # dest_subdir required when enabled
         if [[ "$p_enabled" == "true" ]] && [[ -z "$p_dest" ]]; then
@@ -260,11 +376,12 @@ Use --help to see available options" "exit"
 # =============================================================================
 
 # =========================================================================
-# DYNAMIC RSYNC BACKUP
+# PER-PATH BACKUP DISPATCH
 # =========================================================================
-# Iterates over paths[] from config: each enabled path is rsynced to
-# its dest_subdir under BACKUP_ROOT. Optional per-path btrfs_snapshot
-# creates a temporary read-only snapshot for consistency.
+# Iterates over paths[] from config and dispatches to strategy:
+#   rsync   → incremental mirror under backup_root/dest_subdir/
+#   archive → tar.zst dated archive in backup_root/dest_subdir/
+# Destination snapshots (timeline) wrap the rsync-strategy paths as a group.
 backup_paths() {
     local path_count
     path_count=$(parse_yaml_count "paths")
@@ -274,13 +391,27 @@ backup_paths() {
         return
     fi
 
+    # Build shared rsync option array once (applies to all rsync-strategy paths)
+    local base_rsync_opts=()
+    read -ra base_rsync_opts <<< "$(build_rsync_options)"
+
+    # Inject destination timeline args (non-BTRFS backup-dir mode)
+    if [[ "$SNAP_ENABLED" == "true" ]]; then
+        timeline_begin "$BACKUP_ROOT" "$SNAP_DIR" "$SNAP_PREFIX" "$SNAP_MODE"
+        base_rsync_opts+=("${TIMELINE_RSYNC_ARGS[@]}")
+    fi
+
+    local did_rsync=false
+
     for ((i=0; i<path_count; i++)); do
-        local p_name p_source p_dest p_enabled p_btrfs_snap
+        local p_name p_source p_dest p_enabled p_strategy p_btrfs_snap
         p_name=$(parse_yaml_index "paths" "$i" "name")
         p_source=$(parse_yaml_index "paths" "$i" "source")
         p_dest=$(parse_yaml_index "paths" "$i" "dest_subdir")
         p_enabled=$(parse_yaml_index "paths" "$i" "enabled")
+        p_strategy=$(parse_yaml_index "paths" "$i" "strategy")
         p_btrfs_snap=$(parse_yaml_index "paths" "$i" "btrfs_snapshot")
+        [[ -z "$p_strategy" ]] && p_strategy="rsync"
 
         # Skip disabled paths
         if [[ "$p_enabled" != "true" ]]; then
@@ -288,61 +419,117 @@ backup_paths() {
             continue
         fi
 
-        # Skip if source doesn't exist or is empty
+        # Skip if source doesn't exist
         if [[ ! -d "$p_source" ]]; then
             log_warn "Path '$p_name': source not found: $p_source (skipping)"
             continue
         fi
 
-        log_section "BACKUP $p_name ($p_source)"
+        log_section "BACKUP $p_name ($p_source) [strategy: $p_strategy]"
 
         local dest="$BACKUP_ROOT/$p_dest"
-        mkdir -p "$dest"
 
-        # Build exclusions for this path
+        # Collect exclusions
         local exclusions=()
         while IFS= read -r excl; do
             [[ -z "$excl" ]] && continue
-            exclusions+=("--exclude=$excl")
+            exclusions+=("$excl")
         done < <(parse_yaml_index_array "paths" "$i" "exclusions")
-        exclusions+=("--exclude=.snapshots")
 
-        info "Source      : $p_source/"
-        info "Destination : $dest/"
-        info "Exclusions  : ${#exclusions[@]} rules"
-
-        if [[ "$DRY_RUN" == "true" ]]; then
-            info "Rules: ${exclusions[*]}"
-        fi
-
-        # Optional: temporary read-only snapshot for consistency
-        local rsync_source="$p_source"
-        local temp_snapshot=""
-
-        if [[ "$p_btrfs_snap" == "true" ]] && [[ "$DRY_RUN" == "false" ]]; then
-            temp_snapshot="${p_source%/}/.backup-snapshot-$$"
-            if btrfs subvolume snapshot -r "$p_source" "$temp_snapshot" 2>/dev/null; then
-                log "Temporary snapshot for consistency: $temp_snapshot"
-                rsync_source="$temp_snapshot"
-            else
-                log_warn "Cannot create temp snapshot, backup without consistency guarantee"
-                temp_snapshot=""
-            fi
-        fi
-
-        # Run rsync
-        log "Starting rsync $p_source/..."
-        # shellcheck disable=SC2086  # RSYNC_OPTIONS intentionally word-split
-        rsync_safe $RSYNC_OPTIONS --delete "${exclusions[@]}" "$rsync_source/" "$dest/"
-
-        # Cleanup temp snapshot
-        if [[ -n "$temp_snapshot" ]] && [[ -d "$temp_snapshot" ]]; then
-            log "Deleting temporary snapshot..."
-            btrfs subvolume delete "$temp_snapshot" 2>/dev/null || log_warn "Failed to delete temporary snapshot"
-        fi
-
-        log_success "Backup $p_name completed"
+        case "$p_strategy" in
+            rsync)
+                backup_path_rsync "$p_name" "$p_source" "$dest" "$p_btrfs_snap" \
+                    base_rsync_opts exclusions
+                did_rsync=true
+                ;;
+            archive)
+                backup_path_archive "$i" "$p_name" "$p_source" "$dest" exclusions
+                ;;
+        esac
     done
+
+    # Finalize destination timeline (only if at least one rsync ran)
+    if [[ "$SNAP_ENABLED" == "true" ]] && [[ "$did_rsync" == "true" ]] && [[ "$DRY_RUN" != "true" ]]; then
+        log_section "FINALIZING SNAPSHOT"
+        timeline_end "$BACKUP_ROOT" "$SNAP_DIR" "$SNAP_PREFIX" "$SNAP_KEEP" "$SNAP_MODE"
+    fi
+}
+
+# Rsync one path. Takes source rsync opts array by nameref.
+backup_path_rsync() {
+    local name="$1"
+    local source="$2"
+    local dest="$3"
+    local btrfs_snap="$4"
+    local -n _opts=$5
+    local -n _exclusions=$6
+
+    mkdir -p "$dest"
+
+    # Always exclude the snapshots directory from source side
+    local rsync_excludes=()
+    local excl
+    for excl in "${_exclusions[@]}"; do
+        rsync_excludes+=("--exclude=$excl")
+    done
+    rsync_excludes+=("--exclude=$SNAP_DIR")
+
+    info "Source      : $source/"
+    info "Destination : $dest/"
+    info "Exclusions  : ${#rsync_excludes[@]} rules"
+
+    # Optional source-side temporary snapshot for consistency (BTRFS only)
+    local rsync_source="$source"
+    local temp_snapshot=""
+
+    if [[ "$btrfs_snap" == "true" ]] && [[ "$DRY_RUN" != "true" ]]; then
+        temp_snapshot="${source%/}/.backup-snapshot-$$"
+        if btrfs subvolume snapshot -r "$source" "$temp_snapshot" 2>/dev/null; then
+            log "Temporary source snapshot for consistency: $temp_snapshot"
+            rsync_source="$temp_snapshot"
+        else
+            log_warn "Cannot create temp source snapshot, backup without consistency guarantee"
+            temp_snapshot=""
+        fi
+    fi
+
+    log "Starting rsync $source/..."
+    rsync_safe "${_opts[@]}" "${rsync_excludes[@]}" "$rsync_source/" "$dest/"
+
+    # Cleanup temp snapshot
+    if [[ -n "$temp_snapshot" ]] && [[ -d "$temp_snapshot" ]]; then
+        log "Deleting temporary source snapshot..."
+        btrfs subvolume delete "$temp_snapshot" 2>/dev/null || log_warn "Failed to delete temporary snapshot"
+    fi
+
+    log_success "Backup $name completed"
+}
+
+# Create a dated tar.zst archive for one path.
+backup_path_archive() {
+    local idx="$1"
+    local name="$2"
+    local source="$3"
+    local dest="$4"
+    local -n _exclusions=$5
+
+    # Archive options (with defaults)
+    local a_level a_retention
+    a_level=$(parse_yaml_index "paths" "$idx" "archive.compression_level")
+    a_retention=$(parse_yaml_index "paths" "$idx" "archive.retention")
+    [[ -z "$a_level" ]] && a_level=10
+    [[ -z "$a_retention" ]] && a_retention=6
+
+    info "Source           : $source"
+    info "Destination      : $dest/"
+    info "Compression      : zstd -$a_level"
+    info "Retention        : $a_retention archives"
+    info "Exclusions       : ${#_exclusions[@]} rules"
+
+    archive_create "$source" "$dest" "$name" "$a_level" "${_exclusions[@]}"
+    archive_rotate "$dest" "$name" "$a_retention"
+
+    log_success "Archive $name completed"
 }
 
 # =========================================================================
@@ -503,7 +690,6 @@ main() {
     if [[ "$DRY_RUN" == "true" ]]; then
         log_section "DRY-RUN MODE - BACKUP SIMULATION"
         log_warn "No files will be modified"
-        RSYNC_OPTIONS="$RSYNC_OPTIONS --dry-run"
     else
         log_section "SYSTEM BACKUP START"
     fi
@@ -557,14 +743,14 @@ If necessary, mount manually:
     run_hooks "post_backup"
 
     # =========================================================================
-    # OPTIONAL CHECKS
+    # OPTIONAL CHECKS (CLI flags override config toggles)
     # =========================================================================
-    if [[ "$ENABLE_SCRUB" == "true" ]]; then
+    if [[ "$ENABLE_SCRUB" == "true" ]] || [[ "$BTRFS_SCRUB_CFG" == "true" ]]; then
         log_section "BTRFS SCRUB (INTEGRITY CHECK)"
         btrfs_run_scrub "$BACKUP_MOUNT" "External HDD"
     fi
 
-    if [[ "$ENABLE_STATS" == "true" ]] && command -v compsize &> /dev/null; then
+    if [[ "$ENABLE_STATS" == "true" ]] || [[ "$BTRFS_STATS_CFG" == "true" ]]; then
         log_section "COMPRESSION STATISTICS"
         btrfs_show_stats "$BACKUP_ROOT" "Backup"
     fi

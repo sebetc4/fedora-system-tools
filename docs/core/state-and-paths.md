@@ -78,12 +78,12 @@ installed=2026-02-15 10:30:46
 
 | File | Format | Module | No overwrite |
 |------|--------|--------|-------------|
-| `backup/system.yml` | YAML | backup/system | yes |
+| `backup/local.yml` | YAML | backup/local | yes |
 | `backup/hdd.yml` | YAML | backup/hdd-to-hdd | yes |
 | `backup/hdd-both.yml` | YAML | backup/hdd-to-both-hdd | yes |
 | `backup/bitwarden.yml` | YAML | backup/bitwarden | yes |
 | `backup/vps.yml` | YAML | backup/vps | yes |
-| `backup/hooks/*.yml` | YAML | backup/system | yes |
+| `backup/hooks/*.yml` | YAML | backup/local | yes |
 | `notify-daemon/services.conf` | Text list | notifications | dynamic |
 | `notify-daemon/icons.conf` | Key=value | notifications | dynamic |
 | `torrent/container.conf` | Shell vars | torrent | — |
@@ -135,7 +135,7 @@ readonly CONTAINER_DATA_DIR="${TORRENT_DATA_DIR:-$HOME/.config/podman/containers
 | `bookmark-manager` | nautilus | — |
 | `notify-daemon` | notifications | — |
 | `notify-manage` | notifications | — |
-| `backup-system` | backup | system |
+| `backup-local` | backup | local |
 | `backup-hdd` | backup | hdd-to-hdd |
 | `backup-hdd-both` | backup | hdd-to-both-hdd |
 | `backup-bitwarden` | backup | bitwarden |
@@ -168,13 +168,13 @@ Path: `/usr/local/lib/system-scripts/`
 | `ui.sh` | Interactive UI (gum + fallback) |
 | `yaml.sh` | YAML parsing helpers |
 | `validate.sh` | Input validation |
-| `backup.sh` | Backup utilities |
+| `fs.sh` | Filesystem helpers (mount / BTRFS / disk-usage) |
 | `registry.sh` | Module registry |
 | `notify.sh` | Notification registration |
 | `color.sh` | Color configuration loading |
 | `paths.sh` | Locale-aware download path detection |
 | `submodule.sh` | Submodule install/uninstall engine |
-| `hooks.d/` | Backup hook scripts (installed by backup/system) |
+| `hooks.d/` | Backup hook scripts (installed by backup/local) |
 
 ---
 
@@ -247,7 +247,7 @@ sed -e "s|__HOME__|$real_home|g" -e "s|__USER__|$real_user|g" "$tpl" > "$dest"
 |------|--------|
 | `~/.config/system-scripts/` | registry |
 | `~/.config/backup/` | backup/* |
-| `~/.config/backup/hooks/` | backup/system |
+| `~/.config/backup/hooks/` | backup/local |
 | `~/.config/notify-daemon/` | notifications |
 | `~/.config/torrent/` | torrent |
 | `~/.config/podman/containers/gluetun/` | torrent |
@@ -328,13 +328,13 @@ The engine displays a yellow summary of preserved config paths at uninstall.
 | `/var/log/backup/` | yes | |
 | `/etc/logrotate.d/backup-scripts` | yes | |
 
-#### backup/system
+#### backup/local
 
 | Installed | Removed | Preserved |
 |-----------|---------|----------|
-| `/usr/local/bin/backup-system` | yes | |
+| `/usr/local/bin/backup-local` | yes | |
 | `/usr/local/lib/system-scripts/hooks.d/pre-backup/*.sh` | yes | |
-| `~/.config/backup/system.yml` | | **yes** |
+| `~/.config/backup/local.yml` | | **yes** |
 | `~/.config/backup/hooks/*.yml` | | **yes** |
 
 #### backup/hdd

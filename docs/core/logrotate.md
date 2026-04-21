@@ -152,7 +152,7 @@ All logrotate configs in the project use the same base options:
 Check logrotate state for a specific config:
 
 ```bash
-sudo logrotate -d /etc/logrotate.d/seb-notifications
+sudo logrotate -d /etc/logrotate.d/user-notifications
 ```
 
 Check when a log was last rotated:
@@ -164,7 +164,7 @@ grep "notifications" /var/lib/logrotate/logrotate.status
 Force rotation for testing:
 
 ```bash
-sudo logrotate -f /etc/logrotate.d/seb-notifications
+sudo logrotate -f /etc/logrotate.d/user-notifications
 ```
 
 List all project logrotate configs:
