@@ -58,11 +58,11 @@ affects separately.
 - [ ] Check that the driver package added the `nouveau` and `nova_core` blacklist arguments, without adding them by hand
 
 ### Kernel & Firmware
-- [ ] Step `kernel-args`: apply the profile's kernel arguments with `grubby --update-kernel=ALL --args` (personal profile: `snd_intel_dspcfg.dsp_driver=3`)
+- [ ] Step `kernel-args`: apply the profile's kernel arguments with `grubby --update-kernel=ALL --args` (`legion-7` profile: `snd_intel_dspcfg.dsp_driver=3`)
 - [ ] Step `firmware`: `fwupdmgr refresh` and report the available updates, without flashing anything
 
 ### Personal Profile
-- [ ] Decide with the user whether the CUDA toolkit, `gcc15`, and `nvidia-container-toolkit` belong to the personal profile, and record the decision in the report
+- [ ] Decide with the user whether the CUDA toolkit, `gcc15`, and `nvidia-container-toolkit` belong to the `personal` profile or to a machine profile, and record the decision in the report
 
 ---
 

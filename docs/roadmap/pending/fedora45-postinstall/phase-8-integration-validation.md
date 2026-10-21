@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/7)
+**Current Status:** 🔴 Not Started (0% — 0/6)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -28,8 +28,8 @@ step, and before every commit, pause, or end of session.
 
 ## Objective
 
-Install the fedora-system-tools modules from the post-install run, validate the whole tool on a
-fresh VM, then use it for the real Fedora 45 reinstall.
+Validate the whole tool on a fresh VM, then use it for the real Fedora 45 reinstall.
+fedora-system-tools is installed on its own, with `make` or `setup.sh`, not by a post-install step.
 
 ---
 
@@ -40,7 +40,7 @@ Each step has been tested on its own. Only a full run on a fresh system, then th
 shows what is still missing or still manual.
 
 ### What It Enables
-The real machine on Fedora 45 with the personal profile applied, and a tool other Fedora installs
+The real machine on Fedora 45 with the `legion-7` profile applied, and a tool other Fedora installs
 can use.
 
 ### Out of Scope
@@ -50,8 +50,7 @@ The installation itself (Anaconda, partitioning, LUKS).
 
 ## Tasks
 
-### fedora-system-tools Integration
-- [ ] Step `system-tools`: run `make install-lib`, then install the profile's modules and submodules with `setup.sh --install` from the checkout
+### Bootstrap
 - [ ] Document the bootstrap from a fresh install: clone the repository, then run `postinstall.sh`
 
 ### Validation
@@ -69,7 +68,6 @@ The installation itself (Anaconda, partitioning, LUKS).
 
 ### Files to Modify
 ```
-postinstall/steps/       (system-tools)
 postinstall/README.md
 ```
 
@@ -83,6 +81,6 @@ Back up before the real install; the `restore-system` tooling stays within reach
 
 ## Acceptance Criteria
 
-- [ ] A fresh Fedora 45 VM reaches the target state with one command plus the documented manual steps (MOK enrollment, re-login)
-- [ ] The real machine runs Fedora 45 with the personal profile applied and `nvidia-smi` working with Secure Boot enabled
+- [ ] A fresh Fedora 45 VM reaches the target state with `postinstall.sh` plus the documented manual steps (fedora-system-tools install, MOK enrollment, re-login)
+- [ ] The real machine runs Fedora 45 with the `legion-7` profile applied and `nvidia-smi` working with Secure Boot enabled
 - [ ] `make shellcheck` passes

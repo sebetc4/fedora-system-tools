@@ -15,16 +15,16 @@
 ## Overall Progress
 
 ```
-Phase 0  Framing & Architecture     🟡 █░░░░░░░░░░░░░░░░░░░   0%  (0/15)
-Phase 1  Core Framework             🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/13)
+Phase 0  Framing & Architecture     🟡 ███████████████████░  93%  (14/15)
+Phase 1  Core Framework             🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/14)
 Phase 2  Repositories & Multimedia  🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/9)
 Phase 3  NVIDIA & Hardware          🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/7)
 Phase 4  Packages                   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/8)
 Phase 5  Flatpaks                   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
 Phase 6  GNOME                      🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/7)
 Phase 7  System Settings            🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/5)
-Phase 8  Integration & Validation   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/7)
-TOTAL                                  ░░░░░░░░░░░░░░░░░░░░   0%  (0/77)
+Phase 8  Integration & Validation   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
+TOTAL                                  ████░░░░░░░░░░░░░░░░  18%  (14/77)
 ```
 
 **Current Phase:** Phase 0 — Framing & Architecture
@@ -43,7 +43,9 @@ setting is ignored, the run aborts on the first package failure, and package ins
 all-or-nothing. Finally, it repeats work Fedora now does by default.
 
 This roadmap replaces it with a generic, idempotent post-install tool that brings a fresh Fedora
-install to a deliberate, minimal target state, with a personal profile for this workstation.
+install to a deliberate, minimal target state, with a personal profile layer shared by the user's
+machines and one profile per machine: `legion-7` for this workstation, `legion-5` for a second
+laptop.
 
 ---
 
@@ -82,6 +84,8 @@ install to a deliberate, minimal target state, with a personal profile for this 
 - An "export the current system to a profile" command: the inventory is a one-off in phase 0.
 - Migrating GNOME Keyring secrets to oo7, the Fedora 45 Secret Service provider.
 - Fedora Atomic desktops and non-GNOME spins as tested targets.
+- Running the tool on the Legion 5: its `legion-5` profile is created, but its real run comes after
+  this roadmap. Only the Legion 7 and the test VM are validated here.
 
 ---
 
@@ -95,13 +99,13 @@ install to a deliberate, minimal target state, with a personal profile for this 
 - 🔴 [Phase 5: Flatpaks](phase-5-flatpaks.md) — triage of the Flatpak apps, remote policy, Flatpak step
 - 🔴 [Phase 6: GNOME](phase-6-gnome.md) — extension triage and install, dconf settings
 - 🔴 [Phase 7: System Settings](phase-7-system-settings.md) — tuned, snapper, btrfsmaintenance, owner for every modified `/etc` file
-- 🔴 [Phase 8: Integration & Validation](phase-8-integration-validation.md) — fedora-system-tools install step, full VM run, real Fedora 45 reinstall, documentation
+- 🔴 [Phase 8: Integration & Validation](phase-8-integration-validation.md) — full VM run, real Fedora 45 reinstall, bootstrap and user documentation
 
 ---
 
 ## Dependencies
 
-- Fedora 45 Beta or RC image for the test VM (phase 0 onward).
+- Fedora 45 final release image for the test VM (phase 0 onward, available 2026-10-27).
 - Fedora 45 general availability, scheduled for 2026-10-27, for the real-machine run (phase 8).
 - NVIDIA and Secure Boot behavior can only be validated on the real hardware (phases 3 and 8).
 

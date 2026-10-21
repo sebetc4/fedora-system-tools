@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/13)
+**Current Status:** 🔴 Not Started (0% — 0/14)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -68,7 +68,8 @@ Repositories (phase 2) and package lists (phase 4).
 
 ### Tooling & Profiles
 - [ ] Add the `postinstall/` scripts to the Makefile `shellcheck` target
-- [ ] Create the generic default profile and the personal profile skeleton
+- [ ] Declare `POSTINSTALL_VERSION` (`0.1.0`) in `postinstall.sh`, and add `postinstall/` to `docs/core/versioning.md` as a component outside the release tarball, which needs no project bump
+- [ ] Create the profile chain `default` → `personal` → machine (`legion-7`, `legion-5` skeletons), loaded through each `profile.conf`'s `PARENT`, with cycle and missing-parent errors
 
 ---
 
