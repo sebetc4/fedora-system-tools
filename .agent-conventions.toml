@@ -1,0 +1,16 @@
+language   = "english"
+versioning = "git"
+
+[roadmap]
+root = "docs/roadmap"
+
+[skills]
+dirs      = [".claude/skills"]
+evals     = "evals"
+workspace = ".eval-runs"
+address   = "agent"
+exclude   = ["dynamic-context", "substitutions"]
+
+[session]
+notes         = "notes/sessions"
+# start_notes = 3   (default)
