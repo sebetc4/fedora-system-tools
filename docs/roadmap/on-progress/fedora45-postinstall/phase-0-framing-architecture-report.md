@@ -149,14 +149,21 @@ roadmap until the Fedora 45 release rather than build the VM from a pre-release 
 no hurry. The inventory in `study/fedora44-inventory/` stays on disk, ignored by git by design.
 The architecture work and this record were committed together at the close.
 
+### 2026-10-22
+
+Resumed the phase. `progress.py --check` found two steps the opening had missed: the roadmap
+was still under `pending/` and the README's `**Roadmap Status:**` was still 🔴. Moved the folder
+to `on-progress/` with `git mv` and set the status to 🟡; no other living document cited the old
+path.
+
+Fedora 45 Final was declared NO-GO on 2026-10-15 (no release candidate); 2026-10-27 is the
+target, 2026-11-03 the fallback, and the next Go/No-Go meeting is on 2026-10-22 at 17:00 UTC.
+
 **Where the next session starts:**
-1. After the Fedora 45 release (2026-10-27): download the Fedora 45 Workstation final image,
-   create the VM in virt-manager on btrfs, and take the clean-install snapshot — the last task
-   of phase 0.
-2. Close phase 0: the VM acceptance criterion is the one left; the inventory and README criteria
-   are met. Then open phase 1.
-- No question is waiting for the user.
-- Nothing is left uncommitted.
+1. The user decides between waiting for the final image, as decided on 2026-10-21, and closing
+   phase 0 now with the VM task moved to phase 1, whose work runs in dry-run on Fedora 44 and
+   needs the VM only for its acceptance criterion.
+2. Commit the folder move with the next finished step: it is not committed yet.
 
 
 ---

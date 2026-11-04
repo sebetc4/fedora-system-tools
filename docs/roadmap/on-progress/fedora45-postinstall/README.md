@@ -122,11 +122,11 @@ laptop.
 
 ## Metadata
 
-**Roadmap Status:** 🔴 Not Started
-**Location:** `docs/roadmap/pending/fedora45-postinstall/`
+**Roadmap Status:** 🟡 In Progress
+**Location:** `docs/roadmap/on-progress/fedora45-postinstall/`
 **Version:** 1.0.0
 **Created:** 2026-10-18
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-22
 
 ---
 
