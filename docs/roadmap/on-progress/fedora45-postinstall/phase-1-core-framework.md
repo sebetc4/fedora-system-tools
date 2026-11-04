@@ -69,7 +69,7 @@ Repositories (phase 2) and package lists (phase 4).
 ### Tooling & Profiles
 - [ ] Add the `postinstall/` scripts to the Makefile `shellcheck` target
 - [ ] Declare `POSTINSTALL_VERSION` (`0.1.0`) in `postinstall.sh`, and add `postinstall/` to `docs/core/versioning.md` as a component outside the release tarball, which needs no project bump
-- [ ] Create the profile chain `default` → `personal` → machine (`legion-7`, `legion-5` skeletons), loaded through each `profile.conf`'s `PARENT`, with cycle and missing-parent errors
+- [ ] Create the profile chain `default` → `personal` → machine (`legion-7`, `legion-5` skeletons), loaded through each `profile.conf`'s `PARENT`, with cycle and missing-parent errors, desktop-specific content (`packages.<desktop>.list`, `flatpaks.<desktop>.list`, `gnome/`, `kde/`) loaded only when the detected desktop matches
 
 ---
 
@@ -95,7 +95,7 @@ The phase 0 architecture decisions in `postinstall/README.md`.
 ## Acceptance Criteria
 
 - [ ] `make shellcheck` passes
-- [ ] On the Fedora 45 VM, `postinstall.sh --dry-run` lists the intended actions without changing the system
+- [ ] On both Fedora 45 VMs, `postinstall.sh --dry-run` shows the detected desktop and lists the intended actions without changing the system
 - [ ] A real run of `dnf-config` is idempotent: the second run reports no change
 - [ ] With `countme` disabled in the profile, the Fedora repositories report `countme` off as libdnf5 resolves it, not only in `[main]`
 - [ ] A deliberately failing step does not stop the run and appears in the summary

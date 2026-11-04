@@ -52,10 +52,10 @@ App data and settings inside `~/.var/app`.
 ### Triage
 - [ ] Classify the 26 installed apps into keep, drop, and to-decide, and review them with the user
 - [ ] Decide the remote policy: Flathub only, or the Fedora remote allowed per app
-- [ ] Remove duplicates between RPMs and Flatpaks (GNOME Extensions app, Extension Manager)
+- [ ] Remove duplicates between RPMs and Flatpaks; desktop-specific apps, such as the GNOME Extensions app and Extension Manager, go to that desktop's list
 
 ### Implementation
-- [ ] Define the list format with the origin per app (`remote:app.id`)
+- [ ] Define the list format with the origin per app (`remote:app.id`), common and per desktop (`flatpaks.<desktop>.list`)
 - [ ] Step `flatpaks`: install the missing apps from their declared remote, remove the listed apps, then `flatpak uninstall --unused`
 - [ ] Per-app permission overrides from the profile (`flatpak override`), when the profile declares any
 
@@ -80,4 +80,4 @@ Every app of the personal list is approved by the user and declares its remote.
 ## Acceptance Criteria
 
 - [ ] Every app in the personal list was approved by the user and declares its remote
-- [ ] On the Fedora 45 VM, the step installs the list, reports an unknown app id without failing, and a second run changes nothing
+- [ ] On both Fedora 45 VMs, the step installs the lists, reports an unknown app id without failing, and a second run changes nothing

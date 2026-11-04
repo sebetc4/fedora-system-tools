@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/5)
+**Current Status:** 🔴 Not Started (0% — 0/6)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -13,7 +13,7 @@
 
 ## Before Starting This Phase
 
-Read `phase-6-gnome.md` and `phase-6-gnome-report.md` in full before
+Read `phase-6-desktop.md` and `phase-6-desktop-report.md` in full before
 touching anything here: the decisions already taken, the problems and
 deviations recorded, and the changes made to this phase.
 
@@ -28,8 +28,8 @@ step, and before every commit, pause, or end of session.
 
 ## Objective
 
-Apply the system-level settings that fedora-system-tools does not own: power profile, btrfs
-snapshots, and btrfs maintenance.
+Apply the system-level settings that fedora-system-tools does not own: firewall, power profile,
+btrfs snapshots, and btrfs maintenance.
 
 ---
 
@@ -44,13 +44,14 @@ Every modified `/etc` file from the inventory ends with an owner: a step, a fedo
 module, or an explicit drop.
 
 ### Out of Scope
-Files that fedora-system-tools modules install (clamav, backup, notifications, firewall).
+Files that fedora-system-tools modules install (clamav, backup, notifications).
 
 ---
 
 ## Tasks
 
 ### Steps
+- [ ] Step `firewall`: replace the `firewall` module: set the profile's default zone, services, and ports with `firewall-cmd --permanent`, checked against the permanent and runtime state (personal profile: the current hardening, the default zone reduced to `dhcpv6-client`, KDE Connect's ports as a profile option); record each edition's default zone from the VMs
 - [ ] Step `tuned`: set the profile's tuned profile (personal profile: `throughput-performance`); without a profile value, leave the Fedora default
 - [ ] Step `snapper`: when the root filesystem is btrfs, create the `root` and `home` configurations with the profile's limits, and enable the timeline and cleanup timers
 - [ ] Step `btrfsmaintenance`: install it and set the balance and scrub periods and mountpoints from the profile
@@ -65,7 +66,7 @@ Files that fedora-system-tools modules install (clamav, backup, notifications, f
 
 ### Files to Modify
 ```
-postinstall/steps/       (tuned, snapper, btrfsmaintenance)
+postinstall/steps/       (firewall, tuned, snapper, btrfsmaintenance)
 postinstall/profiles/    (system settings)
 ```
 
@@ -79,6 +80,6 @@ Steps skip cleanly when their precondition is absent (no btrfs root, no tuned).
 
 ## Acceptance Criteria
 
-- [ ] On the Fedora 45 VM, the snapper configurations exist with their timers enabled, and the active tuned profile matches the profile
+- [ ] On both Fedora 45 VMs, the firewall's default zone holds only what the profile allows, the snapper configurations exist with their timers enabled, and the active tuned profile matches the profile
 - [ ] Every modified `/etc` file from the inventory has an owner recorded in the report
 - [ ] A second run changes nothing

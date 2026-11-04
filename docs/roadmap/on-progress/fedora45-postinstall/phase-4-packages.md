@@ -55,12 +55,12 @@ Flatpaks (phase 5) and GNOME extensions packaged as RPMs (phase 6).
 - [ ] Review the to-decide items with the user, one category at a time
 - [ ] Drop the Live-image leftovers (`anaconda-live`, `livesys-scripts`, `dracut-live`), old `kmod-nvidia-*` packages, and `slirp4netns` (removed with Podman 6 in Fedora 45)
 - [ ] Use a DNF group where one matches the need (for example `@virtualization`) instead of listing its members
-- [ ] Decide which default Workstation packages the personal profile removes
+- [ ] Decide, for each edition (Workstation, KDE Plasma Desktop), which of its default packages the personal profile removes
 
 ### Implementation
-- [ ] Define the package list format: categories, comments, install and remove entries, groups
+- [ ] Define the package list format: categories, comments, install and remove entries, groups, per-desktop lists
 - [ ] Step `packages`: one install transaction with `--skip-unavailable`, one `dnf remove` transaction, unavailable names reported at the end
-- [ ] Write the generic default list (minimal) and the personal list
+- [ ] Write the generic default list (minimal) and the personal lists, common and per desktop
 
 ---
 
@@ -83,5 +83,5 @@ Every entry of the personal list is approved by the user; nothing is added in bu
 ## Acceptance Criteria
 
 - [ ] Every package in the personal list has a category and was approved by the user
-- [ ] On the Fedora 45 VM, the step installs the list, reports unavailable names without failing, and a second run changes nothing
-- [ ] No listed package is already provided by the default install or by a listed group
+- [ ] On both Fedora 45 VMs, the step installs the lists, reports unavailable names without failing, and a second run changes nothing
+- [ ] No listed package is already provided by the edition's default install or by a listed group

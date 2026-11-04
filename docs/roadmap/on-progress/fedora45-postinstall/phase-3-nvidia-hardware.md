@@ -29,7 +29,7 @@ step, and before every commit, pause, or end of session.
 ## Objective
 
 Install the proprietary NVIDIA driver on Secure Boot systems, apply profile-declared kernel
-arguments, and report firmware updates.
+arguments, install the Legion 7's audio firmware, and report firmware updates.
 
 ---
 
@@ -55,11 +55,11 @@ affects separately.
 - [ ] Step `nvidia`: skipped unless an NVIDIA GPU is detected; installs `akmod-nvidia` and, per profile, `xorg-x11-drv-nvidia-cuda`
 - [ ] Wait for the akmods build to finish and check the module version before reporting success
 - [ ] Secure Boot: read the state from `detect_secure_boot`; when enabled, generate the akmods key (`kmodgenca`), queue its enrollment (`mokutil --import`), and print the boot-time enrollment instructions
-- [ ] Decide with the user whether akmods and build-kernel share one MOK key or enroll one each, and record the decision in the report
 - [ ] Check that the driver package added the `nouveau` and `nova_core` blacklist arguments, without adding them by hand
 
 ### Kernel & Firmware
-- [ ] Step `kernel-args`: apply the profile's kernel arguments with `grubby --update-kernel=ALL --args` (`legion-7` profile: `snd_intel_dspcfg.dsp_driver=3`)
+- [ ] Step `kernel-args`: apply the profile's kernel arguments with `grubby --update-kernel=ALL --args` (none planned for `legion-7`: the AW88399 driver's documentation advises against `snd_intel_dspcfg.dsp_driver=3` from kernel 7.3 on)
+- [ ] Step `audio-firmware` (`legion-7` profile): while `linux-firmware` does not ship it, install the AW88399 firmware at the path the running kernel expects (`aw88399_acf.bin` up to 7.3, `awinic/aw88399_acf_<SSID>.bin` from 7.4), and report when the running kernel's config lacks `CONFIG_SND_HDA_SCODEC_AW88399_I2C`
 - [ ] Step `firmware`: `fwupdmgr refresh` and report the available updates, without flashing anything
 
 ### Personal Profile

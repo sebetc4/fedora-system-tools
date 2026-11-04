@@ -1,14 +1,15 @@
 # postinstall
 
-Brings a fresh Fedora Workstation install to a deliberate, minimal target state, idempotently,
-from a profile. Generic defaults apply to any Fedora 45 install; a personal layer and one profile
-per machine add the owner's choices.
+Brings a fresh Fedora install, Workstation or KDE Plasma Desktop, to a deliberate, minimal target
+state, idempotently, from a profile. Generic defaults apply to any Fedora 45 install; a personal
+layer and one profile per machine add the owner's choices.
 
 **Status:** design only. The decisions below were taken in phase 0 of the
 `fedora45-postinstall` roadmap; nothing is implemented yet. Usage documentation comes with the
 implementation.
 
-**Target:** Fedora 45 Workstation (GNOME), DNF5 only.
+**Targets:** Fedora 45 Workstation (GNOME) and Fedora 45 KDE Plasma Desktop, both tested, DNF5
+only.
 
 ---
 
@@ -81,10 +82,11 @@ A profile is a folder of plain files, one per concern:
 | File | Format |
 |---|---|
 | `profile.conf` | shell variables: `PARENT`, `KERNEL_ARGS`, `TUNED_PROFILE`, `REPOS`, … |
-| `packages.list` | one package per line; `-name` removes a package |
-| `flatpaks.list` | one application id per line |
-| `extensions.list` | one GNOME extension UUID per line |
-| `dconf/*.ini` | the `dconf dump` keyfile format, applied with `dconf load` |
+| `packages.list`, `packages.<desktop>.list` | one package per line; `-name` removes a package |
+| `flatpaks.list`, `flatpaks.<desktop>.list` | one application id per line |
+| `gnome/extensions.list` | one GNOME extension UUID per line |
+| `gnome/dconf/*.ini` | the `dconf dump` keyfile format, applied with `dconf load` |
+| `kde/<config-file>.ini` | INI fragment of one file of `~/.config`, each key applied with `kwriteconfig6` |
 
 Profiles form a chain through `PARENT`:
 
@@ -97,7 +99,9 @@ default    any Fedora 45 install
 
 The chain is loaded from `default` down to the selected profile. List lines are added; a `-name`
 line drops an entry inherited from a parent; a `profile.conf` variable replaces the parent's
-value. A missing parent or a cycle is an error.
+value. A missing parent or a cycle is an error. `<desktop>` files and the `gnome/` and `kde/`
+folders are read only when the detected desktop matches, so the `personal` layer can hold the
+owner's settings for both desktops.
 
 The profile is always chosen explicitly with `--profile`; the run header shows the machine model
 read from DMI, so a profile run on the wrong machine is visible.
@@ -107,7 +111,7 @@ installed before the configuration could even be read. Plain lists read in pure 
 cleanly. Shell-variable files are already the repository's format for `paths.conf` and
 `clamav.conf`. The dconf keyfile format round-trips with `dconf dump` and `dconf load` unchanged.
 
-**Why a chain:** packages, Flatpaks, extensions, and GNOME settings are the owner's choices on
+**Why a chain:** packages, Flatpaks, and desktop settings are the owner's choices on
 every machine, while a few settings (a kernel argument fixing one laptop's audio) belong to one
 machine only. Hardware differences that detection can see (GPU vendors, Secure Boot) need no
 profile entry at all.
@@ -124,7 +128,7 @@ root login, where it cannot know whose settings to apply.
   arguments, Flatpaks (installed system-wide), system settings.
 - `user` steps run through `runuser` as that user, with `DBUS_SESSION_BUS_ADDRESS` and
   `XDG_RUNTIME_DIR` pointing at the user's session, which `dconf` and `gnome-extensions` need:
-  GNOME extensions and dconf settings.
+  GNOME extensions, dconf settings, and Plasma settings.
 
 A freshly installed GNOME extension can only be enabled after a re-login. The step reports this as
 a pending action in the summary, not as a failure.
@@ -142,7 +146,7 @@ themselves.
 | `detect_gpu_vendors` | `lspci -n`, display classes, vendor ids | `nvidia`, `intel`, `amd`; several on hybrid laptops |
 | `detect_secure_boot` | the `SecureBoot` EFI variable under `/sys/firmware/efi/efivars` | `enabled`, `disabled`, `unsupported` |
 | `detect_root_btrfs` | `is_btrfs /` from `lib/fs.sh` | yes / no |
-| `detect_desktop` | the `Desktop` property of the user's `loginctl` session | `gnome`, … |
+| `detect_desktop` | the `Desktop` property of the user's `loginctl` session | `gnome`, `kde`, `other` (every desktop step skipped) |
 | `detect_virt` | `systemd-detect-virt` | `none`, `kvm`, … |
 | `detect_fedora` | `/etc/os-release` | version and variant |
 | `detect_machine` | `/sys/class/dmi/id/` | vendor and model |

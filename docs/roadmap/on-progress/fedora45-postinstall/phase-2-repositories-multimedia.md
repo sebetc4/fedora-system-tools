@@ -79,14 +79,16 @@ Phase 1 runner and helpers.
 ### Constraints
 - No `--nogpgcheck` or `--nosignature` anywhere in `postinstall/`.
 - No step writes to `/etc/yum.repos.d/`; options go through `dnf config-manager`.
+- The steps work on both editions: a tool or repository package that KDE Plasma Desktop does not
+  ship by default, such as `fedora-third-party`, is installed by the step that needs it.
 
 ---
 
 ## Acceptance Criteria
 
 - [ ] `grep` finds no `--nogpgcheck`, `--nosignature`, or write to `/etc/yum.repos.d/` in `postinstall/`
-- [ ] On the Fedora 45 VM, `ffmpeg -version` shows the RPM Fusion build and `gst-inspect-1.0 libav` lists H.264 and HEVC decoders
-- [ ] On the VM, the hardware acceleration step either installs the driver for the detected GPU or is skipped with a clear message
+- [ ] On both Fedora 45 VMs, `ffmpeg -version` shows the RPM Fusion build and `gst-inspect-1.0 libav` lists H.264 and HEVC decoders
+- [ ] On both VMs, the hardware acceleration step either installs the driver for the detected GPU or is skipped with a clear message
 - [ ] A second run changes nothing
 
 ---

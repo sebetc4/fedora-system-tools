@@ -18,16 +18,16 @@ deliberate target state from a chain of profiles, and uses it for the Legion 7's
 ## Overall Progress
 
 ```
-Phase 0  Framing & Architecture     🟡 ███████████████████░  93%  (14/15)
+Phase 0  Framing & Architecture     🟡 ██████████████████░░  88%  (14/16)
 Phase 1  Core Framework             🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/14)
 Phase 2  Repositories & Multimedia  🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/9)
 Phase 3  NVIDIA & Hardware          🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/8)
 Phase 4  Packages                   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/8)
 Phase 5  Flatpaks                   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
-Phase 6  GNOME                      🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/7)
-Phase 7  System Settings            🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/5)
+Phase 6  Desktop                    🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/12)
+Phase 7  System Settings            🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
 Phase 8  Integration & Validation   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
-TOTAL                                  ████░░░░░░░░░░░░░░░░  18%  (14/78)
+TOTAL                                  ███░░░░░░░░░░░░░░░░░  16%  (14/85)
 ```
 
 **Current Phase:** Phase 0 — Framing & Architecture
@@ -59,7 +59,10 @@ laptop.
 - Generic tool with profiles: generic defaults plus a personal profile for this workstation.
   Hardware-dependent steps decide from detection (GPU vendors, Secure Boot, btrfs, desktop), never
   from hard-coded assumptions.
-- Target: Fedora 45 Workstation (GNOME), DNF5 only. GNOME steps are skipped on other desktops.
+- Targets: Fedora 45 Workstation (GNOME) and Fedora 45 KDE Plasma Desktop, both tested, DNF5
+  only. Detection chooses the desktop steps; on any other desktop they are skipped. Changed on
+  2026-11-04 from Workstation alone: the owner's two laptops may run different desktops, and VMs
+  of either desktop are used with the owner's configuration.
 - Only what is needed: packages, Flatpaks, and extensions are triaged with the user, never
   imported in bulk from the old system.
 - The old script's defects are design requirements, not patches: `dnf remove` instead of
@@ -81,12 +84,14 @@ laptop.
 
 - The installation itself: Anaconda, partitioning, LUKS, kickstart.
 - Dotfiles (`~/.bashrc`, `~/.gitconfig`, `~/.ssh`).
-- Adapting `build-kernel` to Fedora 45's RPM signature enforcement: locally built kernel and
-  `kmod-nvidia` packages installed with `--nogpgcheck` will be refused. This is separate work, to
-  do before using the custom kernel on Fedora 45.
+- Adapting `build-kernel` to Fedora 45's RPM signature enforcement: deferred to its first real
+  need (roadmap `fedora45-modules`). The Legion 7's audio comes from Fedora's kernel 7.3 or later.
+- The review of the fedora-system-tools modules (roadmap `fedora45-modules`). Only the
+  replacement of the `firewall` module by a step is here, in phase 7.
 - An "export the current system to a profile" command: the inventory is a one-off in phase 0.
 - Migrating GNOME Keyring secrets to oo7, the Fedora 45 Secret Service provider.
-- Fedora Atomic desktops and non-GNOME spins as tested targets.
+- Fedora Atomic desktops and spins other than Workstation and KDE Plasma Desktop as tested
+  targets.
 - Running the tool on the Legion 5: its `legion-5` profile is created, but its real run comes after
   this roadmap. Only the Legion 7 and the test VM are validated here.
 
@@ -94,22 +99,25 @@ laptop.
 
 ## Phases
 
-- [Phase 0: Framing & Architecture](phase-0-framing-architecture.md) — inventory of the Fedora 44 machine, design of `postinstall/`, Fedora 45 test VM
+- [Phase 0: Framing & Architecture](phase-0-framing-architecture.md) — inventory of the Fedora 44 machine, design of `postinstall/`, Fedora 45 test VMs (GNOME and KDE Plasma)
 - [Phase 1: Core Framework](phase-1-core-framework.md) — runner, helpers, logging, dry-run, root/user split, `dnf-config` step
 - [Phase 2: Repositories & Multimedia](phase-2-repositories-multimedia.md) — third-party and RPM Fusion repositories with signed installs, extra repositories, full multimedia stack, hardware video acceleration
-- [Phase 3: NVIDIA & Hardware](phase-3-nvidia-hardware.md) — NVIDIA driver with Secure Boot key enrollment, kernel arguments, firmware report
+- [Phase 3: NVIDIA & Hardware](phase-3-nvidia-hardware.md) — NVIDIA driver with Secure Boot key enrollment, kernel arguments, the Legion 7's audio firmware, firmware report
 - [Phase 4: Packages](phase-4-packages.md) — triage of the explicitly installed packages, package list format and step
 - [Phase 5: Flatpaks](phase-5-flatpaks.md) — triage of the Flatpak apps, remote policy, Flatpak step
-- [Phase 6: GNOME](phase-6-gnome.md) — extension triage and install, dconf settings
-- [Phase 7: System Settings](phase-7-system-settings.md) — tuned, snapper, btrfsmaintenance, owner for every modified `/etc` file
-- [Phase 8: Integration & Validation](phase-8-integration-validation.md) — full VM run, real Fedora 45 reinstall, bootstrap and user documentation
+- [Phase 6: Desktop](phase-6-desktop.md) — GNOME extensions and dconf settings, KDE Plasma settings and panel layout
+- [Phase 7: System Settings](phase-7-system-settings.md) — firewall, tuned, snapper, btrfsmaintenance, owner for every modified `/etc` file
+- [Phase 8: Integration & Validation](phase-8-integration-validation.md) — full runs on both VMs, real Fedora 45 reinstall, bootstrap and user documentation
 
 ---
 
 ## Dependencies
 
-- Fedora 45 final release image for the test VM (phase 0 onward, available 2026-10-27).
-- Fedora 45 general availability, scheduled for 2026-10-27, for the real-machine run (phase 8).
+- Fedora 45 final release images for the test VMs (phase 0 onward): Workstation and KDE Plasma
+  Desktop, in `/vm/iso`.
+- Fedora 45 general availability, reached on 2026-11-03, for the real-machine run (phase 8).
+- A Fedora kernel 7.3 or later for the Legion 7's audio (phase 8): the AW88399 driver is in
+  mainline from 7.3 on, provided Fedora enables `CONFIG_SND_HDA_SCODEC_AW88399_I2C`.
 - NVIDIA and Secure Boot behavior can only be validated on the real hardware (phases 3 and 8).
 
 ---
@@ -119,7 +127,6 @@ laptop.
 - [Repository conventions](../../../core/conventions.md)
 - [Versioning rules](../../../core/versioning.md)
 - [Shared library overview](../../../lib/overview.md)
-- [Project instructions](../../../../CLAUDE.md)
 
 ---
 
@@ -127,13 +134,19 @@ laptop.
 
 **Roadmap Status:** 🟡 In Progress
 **Location:** `docs/roadmap/on-progress/fedora45-postinstall/`
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Created:** 2026-10-18
 **Last Updated:** 2026-11-04
 
 ---
 
 ## Changelog
+
+### 1.1.0 (2026-11-04)
+
+GNOME and KDE Plasma both become tested targets: two test VMs, desktop-specific content in
+profiles, phase 6 renamed Desktop. The `firewall` module's job moves to a phase 7 step, the
+Legion 7's audio to Fedora's kernel 7.3 plus a phase 3 firmware step. Approved by the user.
 
 ### 1.0.0 (2026-10-18)
 

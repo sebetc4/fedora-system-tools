@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (93% — 14/15)
+**Current Status:** 🟡 In Progress (88% — 14/16)
 **Started:** 2026-10-21
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -21,7 +21,8 @@ step, and before every commit, pause, or end of session.
 ## Objective
 
 Establish the facts and the design the rest of the roadmap builds on: an inventory of the current
-Fedora 44 workstation, the architecture of the new `postinstall/` tool, and a Fedora 45 test VM.
+Fedora 44 workstation, the architecture of the new `postinstall/` tool, and Fedora 45 test VMs
+for GNOME and KDE Plasma.
 
 ---
 
@@ -63,7 +64,8 @@ Implementing any step. Triaging individual packages, Flatpaks, or extensions (ph
 - [x] Write the decisions with their rationale in `postinstall/README.md`
 
 ### Test Environment
-- [ ] Create a Fedora 45 Workstation VM (final release image, 2026-10-27) in virt-manager, on btrfs, with a clean-install snapshot to roll back to
+- [ ] Create a Fedora 45 Workstation VM (final release image) in the `/vm` pool, installed on btrfs, with a clean-install snapshot to roll back to
+- [ ] Create a Fedora 45 KDE Plasma Desktop VM (final release image) in the `/vm` pool, installed on btrfs, with a clean-install snapshot to roll back to
 
 ---
 
@@ -75,7 +77,7 @@ postinstall/README.md   (to be created)
 ```
 
 ### Dependencies
-The Fedora 45 Workstation final release image for the VM, released on 2026-10-27.
+The Fedora 45 Workstation and KDE Plasma Desktop final release images, in `/vm/iso`.
 
 ### Constraints
 - Code and documentation in English, per `CLAUDE.md`.
@@ -89,4 +91,4 @@ The Fedora 45 Workstation final release image for the VM, released on 2026-10-27
 
 - [ ] The inventory covers packages, Flatpaks, extensions, dconf, and `/etc` changes, and its location is recorded in the report
 - [ ] Every architecture decision listed above is written in `postinstall/README.md` with its rationale
-- [ ] The Fedora 45 VM boots to a fresh GNOME session and has a restorable snapshot
+- [ ] Each Fedora 45 VM boots to a fresh session of its desktop and has a restorable snapshot

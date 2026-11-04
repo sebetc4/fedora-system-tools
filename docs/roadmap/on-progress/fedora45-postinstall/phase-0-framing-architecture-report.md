@@ -186,13 +186,22 @@ longer waits on anything. Added the `[git]` table to `.agent-conventions.toml` w
 (push `auto`, branch `default`, Conventional Commits), then committed and pushed the folder move
 and the table.
 
+Downloaded the Fedora 45 Workstation and KDE Plasma Desktop Live images (1.4) to `/vm/iso`: the
+`CHECKSUM` files carry a good signature from the `fedora-45-primary` key, and both images match
+their SHA-256.
+
+The user triaged the modules: `torrent`, `notifications` and `backup` stay; ClamAV is refocused on
+the entry points; `firewall` becomes a postinstall step; build-kernel stays generic and dormant.
+The ClamAV engine detects the EICAR test string, so the absence of positives is not a broken
+scanner. Upstream, the AW88399 driver is in mainline from 7.3 on, while the firmware still waits
+for `linux-firmware`. The user approved the desktop restructuring and a separate roadmap for the
+modules, `fedora45-modules`: both are done.
+
 **Where the next session starts:**
-1. The user approves, changes or rejects the desktop restructuring under Problems And Deviations
-   (**Pending approval**); nothing of it is applied yet.
-2. Once approved, apply it, then create the two Fedora 45 VMs (Workstation and KDE Plasma
-   Desktop) from the final images in the `/vm` pool and close phase 0.
-3. The user's module triage leads to separate work (a roadmap of its own, with build-kernel on
-   Fedora 45), not to tasks in this one.
+1. Install Fedora on the two VMs, `fedora-45-workstation` and `fedora-45-kde`, take their
+   `clean-install` snapshots, tick the two VM tasks and close phase 0.
+2. Open phase 1 of this roadmap, or phase 0 of roadmap `fedora45-modules`, which also waits for
+   the VMs.
 
 
 ---
@@ -204,8 +213,16 @@ and the table.
   with their own configuration. The `personal` layer therefore holds settings for both desktops,
   and detection, not the machine profile, decides which desktop steps run. Which desktop each
   machine runs on Fedora 45 is left open. This replaces the opening decision "Target: Fedora 45
-  Workstation (GNOME)"; its application to the roadmap waits for approval (see Problems And
-  Deviations).
+  Workstation (GNOME)".
+- **The `firewall` module becomes a step.** Its hardening is real (the Workstation zone opens
+  ports 1025 to 65535 by default, and this machine's zone is reduced to `dhcpv6-client`), but it
+  is applied once: a declarative `firewall` step in phase 7 fits it better than a module with a
+  wizard, backups and restores. The module's removal is in roadmap `fedora45-modules`.
+- **The Legion 7's audio no longer depends on build-kernel.** From kernel 7.3 on the AW88399 driver
+  is in mainline; what remains is a firmware step in phase 3 while `linux-firmware` does not ship
+  the file. `snd_intel_dspcfg.dsp_driver=3` is dropped from the `legion-7` profile, since the
+  driver's documentation advises against it. Adapting build-kernel to Fedora 45 is deferred to its
+  first real need.
 
 - **The inventory lives in `study/fedora44-inventory/`, inside the checkout but ignored by git.**
   The phase first planned a folder outside the repository; the user preferred keeping it at hand in
@@ -307,9 +324,10 @@ and the table.
   from `detect_secure_boot` instead of `mokutil --sb-state`, matching the detection decision; a
   task added there decides whether akmods and build-kernel share one MOK key or enroll one each
   (phase 3 goes from 7 to 8 tasks). `phase-8-integration-validation.md` gains a dependency:
-  build-kernel working on Fedora 45.
-- 2026-11-04, **Pending approval** — desktop restructuring, from the decision to support GNOME and
-  KDE Plasma (roadmap scope, phase 6's Objective, a phase file renamed):
+  build-kernel working on Fedora 45. Both were overtaken the same day: the MOK task moved to roadmap
+  `fedora45-modules`, Phase 6, and the dependency became Fedora's kernel 7.3.
+- 2026-11-04, **approved by the user and applied** — desktop restructuring, from the decision to
+  support GNOME and KDE Plasma (roadmap scope, phase 6's Objective, a phase file renamed):
   1. `README.md`: the opening decision "Target: Fedora 45 Workstation (GNOME)" becomes "Targets:
      Fedora 45 Workstation (GNOME) and KDE Plasma Desktop, both tested; desktop steps chosen by
      detection"; the out-of-scope line on non-GNOME spins excludes spins other than these two;
@@ -334,6 +352,12 @@ and the table.
      skipping the other desktop's steps.
   7. Phase 8: the full run and its idempotent second run on both VMs; the real-machine run on the
      desktop the user chooses for the Legion 7.
+- 2026-11-04, **approved by the user and applied** — module triage reaching this roadmap: phase 7
+  gains the `firewall` step and its Objective and Out of Scope change; phase 3 gains the
+  `audio-firmware` step, its Objective changes, and the `kernel-args` task drops
+  `snd_intel_dspcfg.dsp_driver=3`; phase 8's dependency and speakers criterion follow.
+- The VM task of this phase split in two, one per desktop: the phase goes from 15 to 16 tasks.
+- `README.md` no longer links `CLAUDE.md`, which git ignores: the link broke in every other clone.
 
 
 ---
