@@ -4,6 +4,11 @@ versioning = "git"
 [roadmap]
 root = "docs/roadmap"
 
+[git]
+push   = "auto"
+branch = "default"
+commit = "{type}[({scope})][!]: {description}"
+
 [skills]
 dirs      = [".claude/skills"]
 evals     = "evals"
