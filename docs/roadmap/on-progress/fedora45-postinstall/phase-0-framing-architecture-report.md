@@ -202,17 +202,57 @@ Defined the VMs `fedora-45-workstation` and `fedora-45-kde` in the `vm-pool` poo
 `fedora-45-kde` booted to its Live Plasma session and was stopped again; `fedora-45-workstation`
 has not been started yet. Neither is installed.
 
+Installed both VMs from their Live images, with the default layout the installer proposes: EFI,
+ext4 `/boot`, `/` and `/home` as btrfs subvolumes on `vda3`. Both boot Fedora 45 on kernel
+`7.2.11-300.fc45` under Secure Boot, in `fr_FR`, and a first desktop session was opened on each
+with the account `seb` (administrator). GNOME has its Initial Setup; KDE Plasma has its own first
+boot setup, which also asks for the keyboard, and its session runs under `plasmalogin`. The
+Workstation installer left the keyboard on `us`: it was set to `fr` AZERTY, as on this machine,
+with `localectl` and `gsettings`. No update was applied. Neither VM has a snapshot yet.
+
+The check of `detect_desktop` failed: the `Desktop` property of the `loginctl` session is empty
+under GDM, on this Fedora 44 machine and on the Fedora 45 Workstation VM, after a real login too,
+while the KDE VM reports `KDE`. As `postinstall/README.md` words it, the function would return
+`other` on GNOME and skip every desktop step. The user manager's environment
+(`systemctl --user show-environment`) holds `XDG_CURRENT_DESKTOP=GNOME` on this machine; it is the
+candidate replacement, not yet tried through `sudo` in either VM.
+
+The guest agent is no way to drive the VMs: it runs confined by SELinux (`virt_qemu_ga_t`), and
+`rpm`, `localectl` and `systemctl` on units are denied to it. The installs were therefore driven by
+screen captures and a virtual keyboard, which is slow and lost or repeated keys under load. The
+user asked for terminal access wherever possible, which means enabling `sshd` in both VMs; the
+command that did so was refused by the session's permission classifier, so the choice is the
+user's.
+
+The VMs' addresses, the account's password and the virtual keyboard script are kept in
+`study/fedora45-vms/` (untracked), since the scratchpad holding the script does not outlive the
+session. The session closed before any SSH setup, on the user's request.
+
 **Where the next session starts:**
-1. Install Fedora on the two VMs, `fedora-45-workstation` and `fedora-45-kde`, take their
-   `clean-install` snapshots, tick the two VM tasks and close phase 0.
-2. Open phase 1 of this roadmap, or phase 0 of roadmap `fedora45-modules`, which also waits for
+1. Set up terminal access to the two VMs, as the user asked at the close: "on reprends avec la
+   config ssh ou régle de permission a la prochaine session". Either the user enables `sshd` in
+   each VM and installs a host key, `~/.ssh/fedora45-vms` without a passphrase, with `ssh-copy-id`,
+   or a Bash permission rule lets the session do it.
+2. Try `detect_desktop`'s replacement through `sudo` on both VMs and correct
+   `postinstall/README.md` and the Detection decision below.
+3. Eject the ISOs, take the `clean-install` snapshots with `sshd` and the key in them, so that each
+   restore stays reachable by terminal, restore each once to prove it, tick the two VM tasks and
+   close phase 0.
+4. Open phase 1 of this roadmap, or phase 0 of roadmap `fedora45-modules`, which also waits for
    the VMs.
+- Question to the user: run the SSH commands themselves, or add the permission rule?
+- Pending: both VMs are still running, with no snapshot. The Workstation terminal holds an unrun
+  `sudo runuser…` line, to clear with Ctrl+U. `.gitignore` holds a change that is not this phase's
+  work (`/roadmap` replaced by `/notes`), neither explained nor committed.
 
 
 ---
 
 ## Decisions
 
+- **The test VMs are not encrypted.** A passphrase at each boot would block unattended reboots and
+  snapshot restores, and they hold nothing sensitive. The real machine stays on LUKS, so these VMs
+  validate nothing about it. Their account's throwaway password stays out of the repository.
 - **GNOME and KDE Plasma are both supported and tested targets.** The user has two laptops and
   may run one on GNOME and the other on KDE Plasma, and wants quick VM tests of either desktop
   with their own configuration. The `personal` layer therefore holds settings for both desktops,
@@ -363,6 +403,9 @@ has not been started yet. Neither is installed.
   `snd_intel_dspcfg.dsp_driver=3`; phase 8's dependency and speakers criterion follow.
 - The VM task of this phase split in two, one per desktop: the phase goes from 15 to 16 tasks.
 - `README.md` no longer links `CLAUDE.md`, which git ignores: the link broke in every other clone.
+- 2026-11-04, defect in the Detection decision: `detect_desktop` reads a `loginctl` property that is
+  empty under GDM, so it would skip every desktop step on GNOME. Left open: to be fixed in this
+  phase once the replacement is tried on both VMs, before phase 1 implements `lib/detect.sh`.
 
 
 ---
