@@ -197,6 +197,11 @@ scanner. Upstream, the AW88399 driver is in mainline from 7.3 on, while the firm
 for `linux-firmware`. The user approved the desktop restructuring and a separate roadmap for the
 modules, `fedora45-modules`: both are done.
 
+Defined the VMs `fedora-45-workstation` and `fedora-45-kde` in the `vm-pool` pool: 8 vCPU, 16 GB,
+60 GB qcow2, UEFI with Secure Boot and enrolled keys, qcow2 NVRAM so that internal snapshots work.
+`fedora-45-kde` booted to its Live Plasma session and was stopped again; `fedora-45-workstation`
+has not been started yet. Neither is installed.
+
 **Where the next session starts:**
 1. Install Fedora on the two VMs, `fedora-45-workstation` and `fedora-45-kde`, take their
    `clean-install` snapshots, tick the two VM tasks and close phase 0.
