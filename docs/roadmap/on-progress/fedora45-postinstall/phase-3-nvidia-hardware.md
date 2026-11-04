@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/7)
+**Current Status:** 🔴 Not Started (0% — 0/8)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -54,7 +54,8 @@ affects separately.
 ### NVIDIA Driver
 - [ ] Step `nvidia`: skipped unless an NVIDIA GPU is detected; installs `akmod-nvidia` and, per profile, `xorg-x11-drv-nvidia-cuda`
 - [ ] Wait for the akmods build to finish and check the module version before reporting success
-- [ ] Secure Boot: detect with `mokutil --sb-state`; when enabled, generate the akmods key (`kmodgenca`), queue its enrollment (`mokutil --import`), and print the boot-time enrollment instructions
+- [ ] Secure Boot: read the state from `detect_secure_boot`; when enabled, generate the akmods key (`kmodgenca`), queue its enrollment (`mokutil --import`), and print the boot-time enrollment instructions
+- [ ] Decide with the user whether akmods and build-kernel share one MOK key or enroll one each, and record the decision in the report
 - [ ] Check that the driver package added the `nouveau` and `nova_core` blacklist arguments, without adding them by hand
 
 ### Kernel & Firmware

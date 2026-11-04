@@ -1,5 +1,8 @@
 # Roadmap: fedora45-postinstall
 
+Builds `postinstall/`, a generic, idempotent tool that brings a fresh Fedora 45 install to a
+deliberate target state from a chain of profiles, and uses it for the Legion 7's reinstall.
+
 ---
 
 ## Status Indicators
@@ -18,13 +21,13 @@
 Phase 0  Framing & Architecture     🟡 ███████████████████░  93%  (14/15)
 Phase 1  Core Framework             🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/14)
 Phase 2  Repositories & Multimedia  🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/9)
-Phase 3  NVIDIA & Hardware          🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/7)
+Phase 3  NVIDIA & Hardware          🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/8)
 Phase 4  Packages                   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/8)
 Phase 5  Flatpaks                   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
 Phase 6  GNOME                      🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/7)
 Phase 7  System Settings            🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/5)
 Phase 8  Integration & Validation   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
-TOTAL                                  ████░░░░░░░░░░░░░░░░  18%  (14/77)
+TOTAL                                  ████░░░░░░░░░░░░░░░░  18%  (14/78)
 ```
 
 **Current Phase:** Phase 0 — Framing & Architecture
@@ -91,15 +94,15 @@ laptop.
 
 ## Phases
 
-- 🟡 [Phase 0: Framing & Architecture](phase-0-framing-architecture.md) — inventory of the Fedora 44 machine, design of `postinstall/`, Fedora 45 test VM
-- 🔴 [Phase 1: Core Framework](phase-1-core-framework.md) — runner, helpers, logging, dry-run, root/user split, `dnf-config` step
-- 🔴 [Phase 2: Repositories & Multimedia](phase-2-repositories-multimedia.md) — third-party and RPM Fusion repositories with signed installs, extra repositories, full multimedia stack, hardware video acceleration
-- 🔴 [Phase 3: NVIDIA & Hardware](phase-3-nvidia-hardware.md) — NVIDIA driver with Secure Boot key enrollment, kernel arguments, firmware report
-- 🔴 [Phase 4: Packages](phase-4-packages.md) — triage of the explicitly installed packages, package list format and step
-- 🔴 [Phase 5: Flatpaks](phase-5-flatpaks.md) — triage of the Flatpak apps, remote policy, Flatpak step
-- 🔴 [Phase 6: GNOME](phase-6-gnome.md) — extension triage and install, dconf settings
-- 🔴 [Phase 7: System Settings](phase-7-system-settings.md) — tuned, snapper, btrfsmaintenance, owner for every modified `/etc` file
-- 🔴 [Phase 8: Integration & Validation](phase-8-integration-validation.md) — full VM run, real Fedora 45 reinstall, bootstrap and user documentation
+- [Phase 0: Framing & Architecture](phase-0-framing-architecture.md) — inventory of the Fedora 44 machine, design of `postinstall/`, Fedora 45 test VM
+- [Phase 1: Core Framework](phase-1-core-framework.md) — runner, helpers, logging, dry-run, root/user split, `dnf-config` step
+- [Phase 2: Repositories & Multimedia](phase-2-repositories-multimedia.md) — third-party and RPM Fusion repositories with signed installs, extra repositories, full multimedia stack, hardware video acceleration
+- [Phase 3: NVIDIA & Hardware](phase-3-nvidia-hardware.md) — NVIDIA driver with Secure Boot key enrollment, kernel arguments, firmware report
+- [Phase 4: Packages](phase-4-packages.md) — triage of the explicitly installed packages, package list format and step
+- [Phase 5: Flatpaks](phase-5-flatpaks.md) — triage of the Flatpak apps, remote policy, Flatpak step
+- [Phase 6: GNOME](phase-6-gnome.md) — extension triage and install, dconf settings
+- [Phase 7: System Settings](phase-7-system-settings.md) — tuned, snapper, btrfsmaintenance, owner for every modified `/etc` file
+- [Phase 8: Integration & Validation](phase-8-integration-validation.md) — full VM run, real Fedora 45 reinstall, bootstrap and user documentation
 
 ---
 
@@ -126,7 +129,7 @@ laptop.
 **Location:** `docs/roadmap/on-progress/fedora45-postinstall/`
 **Version:** 1.0.0
 **Created:** 2026-10-18
-**Last Updated:** 2026-10-22
+**Last Updated:** 2026-11-04
 
 ---
 

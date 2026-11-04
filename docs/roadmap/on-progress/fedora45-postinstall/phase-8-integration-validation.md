@@ -72,7 +72,11 @@ postinstall/README.md
 ```
 
 ### Dependencies
-Fedora 45 general availability (scheduled for 2026-10-27) for the real-machine run.
+Fedora 45 general availability (released on 2026-11-03) for the real-machine run.
+
+build-kernel working on Fedora 45 (locally built RPMs installable under RPM signature
+enforcement, kernel signed for Secure Boot): the Legion 7's audio needs its custom kernel, so the
+real-machine run waits for it. That adaptation stays outside this roadmap.
 
 ### Constraints
 Back up before the real install; the `restore-system` tooling stays within reach.

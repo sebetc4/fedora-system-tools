@@ -159,16 +159,53 @@ path.
 Fedora 45 Final was declared NO-GO on 2026-10-15 (no release candidate); 2026-10-27 is the
 target, 2026-11-03 the fallback, and the next Go/No-Go meeting is on 2026-10-22 at 17:00 UTC.
 
+### 2026-11-04
+
+Fedora 45 was released on 2026-11-03 (GNOME 51 on Workstation, Plasma 6.7 on the KDE Plasma
+Desktop edition, kernel 7.2). RPM signature enforcement and the move of packaged repository files
+to `/usr/share/dnf5/repos.d` both landed, as phases 1 and 2 assume.
+
+Reviewed the whole repository with the user; the review is in
+`reviews/2026-11-04-repository-review.md` (untracked, `/reviews` is ignored). What matters for this
+roadmap: the Legion 7 boots the custom `audio` kernel for its sound, so build-kernel must work on
+Fedora 45 before the real-machine run (added to phase 8's dependencies, see Problems And
+Deviations); and the `nautilus`, `clamav/usb-clamscan` and `backup/vps` modules are the only parts
+of the repository tied to a desktop.
+
+Made a usage inventory of the installed modules from the registries, timers, journal (kept since
+2026-10-07), logs and the last 1000 shell commands. In use: `torrent`, `build-kernel`,
+`notifications`, the `clamav` daily, weekly and download scans, `backup/vps`; used now and then:
+`backup/local`, `backup/hdd`, `backup/bitwarden`. Not used or broken: `clamav/usb-clamscan` (all 11
+insertions since 2026-10-07 timed out waiting for an auto-mount, no scan ran), `clamav/quarantine`,
+`clamav-manage`, `nautilus`, `firewall` (applied once on 2026-03-15), `backup/hdd-both` (not
+installed). The user triages the modules before any bug is fixed; modules stay outside this
+roadmap's scope.
+
+The user chose to support and test both GNOME and KDE Plasma (see Decisions). The test VM no
+longer waits on anything. Added the `[git]` table to `.agent-conventions.toml` with the user
+(push `auto`, branch `default`, Conventional Commits), then committed and pushed the folder move
+and the table.
+
 **Where the next session starts:**
-1. The user decides between waiting for the final image, as decided on 2026-10-21, and closing
-   phase 0 now with the VM task moved to phase 1, whose work runs in dry-run on Fedora 44 and
-   needs the VM only for its acceptance criterion.
-2. Commit the folder move with the next finished step: it is not committed yet.
+1. The user approves, changes or rejects the desktop restructuring under Problems And Deviations
+   (**Pending approval**); nothing of it is applied yet.
+2. Once approved, apply it, then create the two Fedora 45 VMs (Workstation and KDE Plasma
+   Desktop) from the final images in the `/vm` pool and close phase 0.
+3. The user's module triage leads to separate work (a roadmap of its own, with build-kernel on
+   Fedora 45), not to tasks in this one.
 
 
 ---
 
 ## Decisions
+
+- **GNOME and KDE Plasma are both supported and tested targets.** The user has two laptops and
+  may run one on GNOME and the other on KDE Plasma, and wants quick VM tests of either desktop
+  with their own configuration. The `personal` layer therefore holds settings for both desktops,
+  and detection, not the machine profile, decides which desktop steps run. Which desktop each
+  machine runs on Fedora 45 is left open. This replaces the opening decision "Target: Fedora 45
+  Workstation (GNOME)"; its application to the roadmap waits for approval (see Problems And
+  Deviations).
 
 - **The inventory lives in `study/fedora44-inventory/`, inside the checkout but ignored by git.**
   The phase first planned a folder outside the repository; the user preferred keeping it at hand in
@@ -266,6 +303,37 @@ target, 2026-11-03 the fallback, and the next Go/No-Go meeting is on 2026-10-22 
 
 ## Problems And Deviations
 
+- 2026-11-04, adjustments: `phase-3-nvidia-hardware.md`'s Secure Boot task now reads the state
+  from `detect_secure_boot` instead of `mokutil --sb-state`, matching the detection decision; a
+  task added there decides whether akmods and build-kernel share one MOK key or enroll one each
+  (phase 3 goes from 7 to 8 tasks). `phase-8-integration-validation.md` gains a dependency:
+  build-kernel working on Fedora 45.
+- 2026-11-04, **Pending approval** — desktop restructuring, from the decision to support GNOME and
+  KDE Plasma (roadmap scope, phase 6's Objective, a phase file renamed):
+  1. `README.md`: the opening decision "Target: Fedora 45 Workstation (GNOME)" becomes "Targets:
+     Fedora 45 Workstation (GNOME) and KDE Plasma Desktop, both tested; desktop steps chosen by
+     detection"; the out-of-scope line on non-GNOME spins excludes spins other than these two;
+     the phase 6 line follows the new title. `postinstall/README.md`'s Target line follows.
+  2. Phase 0: the VM task becomes two VMs, Workstation and KDE Plasma Desktop, each from the
+     final image, on btrfs, with a clean-install snapshot; its acceptance criterion covers both.
+  3. Profile format (phase 0 decision, `postinstall/README.md`): desktop-specific content in a
+     profile — `packages.<desktop>.list`, `flatpaks.<desktop>.list`, a `gnome/` folder
+     (`extensions.list`, `dconf/*.ini`) and a `kde/` folder (Plasma settings) — loaded only when
+     the detected desktop matches; phase 1's profile task says so, and `detect_desktop` returns
+     `gnome`, `kde`, or another value for which every desktop step is skipped.
+  4. Phase 4: the default packages the personal profile removes are decided per edition.
+  5. Phase 5: desktop-specific apps (the GNOME Extension Manager) go to the desktop's list.
+  6. Phase 6 becomes "Desktop", file `phase-6-desktop.md` (renamed with `git mv`, links in the
+     README and phase 7 repaired). Objective: restore the chosen settings on GNOME and on KDE
+     Plasma. GNOME tasks kept as they are. Plasma tasks added: configure Plasma once on the KDE VM
+     and select the `~/.config` settings worth keeping, starting from the native equivalents of
+     the 9 GNOME extensions; store them in the profile's `kde/` folder as file, group, key and
+     value; step `kde-settings` applying them with `kwriteconfig6` as the desktop user and
+     checking them with `kreadconfig6`; the panel layout either scripted through Plasma's
+     `evaluateScript` or left manual, decided with the user. Acceptance on both VMs, each one
+     skipping the other desktop's steps.
+  7. Phase 8: the full run and its idempotent second run on both VMs; the real-machine run on the
+     desktop the user chooses for the Legion 7.
 
 
 ---
