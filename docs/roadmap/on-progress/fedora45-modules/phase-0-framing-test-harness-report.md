@@ -22,6 +22,18 @@ separately, as the modules do. Proof: `make shellcheck` passes on the 87 scripts
 untracked `modules/zz-bad-probe.sh` holding an unquoted `[ $x == 1 ]`, it fails with SC2086 and
 exit 2, then passes again once the file is removed.
 
+Unit tests live under `tests/unit/`, mirroring the source tree, which leaves `tests/vm/` to the
+harness; `make test` runs `bats --recursive tests/unit` and stops with the `dnf` command to run
+when `bats` is missing. `make shellcheck` lints the `*.bats` files too. The first file,
+`tests/unit/lib/registry.bats`, holds six tests of `version_compare`: equality, patch, minor and
+major order, numeric rather than text comparison, a missing component read as 0. `bats` is not
+installed on this machine and installing it needs the user's `sudo`, so the proof ran in a
+`registry.fedoraproject.org/fedora:45` container (bats 1.14.0, ShellCheck 0.11.0, the local
+version): the six tests pass; with `version_compare` comparing as text, "components compare as
+numbers" fails on `0.10.0` against `0.9.0` (`lt` instead of `gt`) and `make test` exits 2; the
+mutation reverted, all six pass. `setup.sh` keeps its own copy of the function,
+`_version_compare`, which the tests do not cover: Phase 1 settles it with `setup.sh`.
+
 ---
 
 ## Decisions

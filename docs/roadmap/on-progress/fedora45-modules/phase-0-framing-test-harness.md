@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (13% — 1/8)
+**Current Status:** 🟡 In Progress (25% — 2/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -32,7 +32,7 @@ Reviewing any module (phases 1 to 6).
   Proof: medium, the user's decision recorded in the report
 
 ### Tests
-- [ ] Add `bats` tests under `tests/` with a `make test` target, starting with `version_compare` from `lib/registry.sh`
+- [x] Add `bats` tests under `tests/` with a `make test` target, starting with `version_compare` from `lib/registry.sh`
   Proof: medium, test — a test watched failing on a deliberately wrong comparison, then passing
 - [ ] Write the VM harness under `tests/vm/`: restore a VM's snapshot, copy the checkout, run a module's install, its checks, a second install and its uninstall, and report per desktop
   Proof: medium, a run on both VMs for one module, a deliberately failing check reported as failed

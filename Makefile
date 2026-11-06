@@ -15,6 +15,7 @@
 #   make list                       # List installed modules + submodules
 #   make upgrade                    # Upgrade already-installed modules
 #   make shellcheck                 # Run ShellCheck on all scripts
+#   make test                       # Run the bats unit tests
 # =============================================================================
 
 .PHONY: install install-lib install-clamav install-torrent \
@@ -26,7 +27,7 @@
         reinstall-clamav reinstall-torrent \
         reinstall-notifications reinstall-nautilus \
         reinstall-firewall reinstall-backup reinstall-build-kernel \
-        list upgrade shellcheck lint help
+        list upgrade shellcheck lint test help
 
 # ===================
 # Full install
@@ -171,9 +172,9 @@ upgrade:
 # ===================
 # Quality checks
 # ===================
-# Every *.sh file git tracks, plus new ones not ignored yet (wildcard drops
-# files deleted from the working tree but still in the index).
-SHELL_SCRIPTS = $(wildcard $(shell git ls-files --cached --others --exclude-standard '*.sh'))
+# Every *.sh and *.bats file git tracks, plus new ones not ignored yet
+# (wildcard drops files deleted from the working tree but still in the index).
+SHELL_SCRIPTS = $(wildcard $(shell git ls-files --cached --others --exclude-standard '*.sh' '*.bats'))
 
 shellcheck:
 	@echo "==> Running ShellCheck on $(words $(SHELL_SCRIPTS)) scripts..."
@@ -181,6 +182,10 @@ shellcheck:
 	@echo "ShellCheck passed"
 
 lint: shellcheck
+
+test:
+	@command -v bats >/dev/null 2>&1 || { echo "bats is not installed. Run: sudo dnf install bats" >&2; exit 1; }
+	@bats --recursive tests/unit
 
 # ===================
 # Help
@@ -201,6 +206,7 @@ help:
 	@echo "  reinstall-<module>-<sub>   Force reinstall a specific submodule"
 	@echo ""
 	@echo "  shellcheck                 Run ShellCheck on all scripts"
+	@echo "  test                       Run the bats unit tests"
 	@echo "  help                       Show this help"
 	@echo ""
 	@echo "Modules: notifications, clamav, torrent, nautilus, firewall, backup, build-kernel"
