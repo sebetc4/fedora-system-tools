@@ -23,7 +23,13 @@ readonly _LIB_NOTIFY_LOADED=1
 # When running as root (install.sh), we need the real user's home
 _notify_resolve_home() {
     if [[ -n "${SUDO_USER:-}" ]]; then
-        eval echo "~${SUDO_USER}"
+        local home
+        home=$(getent passwd "$SUDO_USER" | cut -d: -f6) || true
+        if [[ -z "$home" ]]; then
+            echo "notify: no home found for user '$SUDO_USER'" >&2
+            return 1
+        fi
+        echo "$home"
     else
         echo "$HOME"
     fi

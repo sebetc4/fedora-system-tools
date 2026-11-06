@@ -43,6 +43,17 @@ group named after the user. Lib bumped to 0.5.1, a patch. `docs/lib/registry.md`
 `docs/core/state-and-paths.md` say how the file is kept, and the latter no longer lists
 `registry_list` and `registry_get_date`, which do not exist.
 
+`eval echo ~user` replaced with `getent passwd` in `lib/notify.sh` and `uninstall.sh`. The
+`eval` ran the user name as shell: a `bats` test with `SUDO_USER="nobody;touch <file>"` saw
+`_notify_resolve_home` create the file, then, fixed, create nothing and fail. An unknown user
+now stops both with a message instead of resolving to an empty home, which in `notify_register`
+would have written under `/.config/notify-daemon`. In `uninstall.sh`, a probe of the new lookup
+gives the user's home for a real user and stops on the same hostile name without running it.
+`git grep -n eval` on the scripts, `*.bats` and the Makefile finds nothing. `uninstall.sh` goes
+to 0.1.1; the lib stays at 0.5.1, this phase's patch. Its review, with `setup.sh`'s, has one
+more thing to settle: its step 5 removes the whole `~/.config/system-scripts`, where the user's
+`color.conf` and `bookmarks.conf` also live.
+
 ---
 
 ## Decisions

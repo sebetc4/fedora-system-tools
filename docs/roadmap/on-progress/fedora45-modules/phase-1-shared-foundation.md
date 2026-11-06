@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (13% — 1/8)
+**Current Status:** 🟡 In Progress (25% — 2/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -28,7 +28,7 @@ The modules themselves (phases 2 to 6).
   Proof: medium, test — the registry and dependency-order tests, each watched failing then passing
 - [ ] Review `lib/submodule.sh`, the install and uninstall engine, against the checklist: every removal stays within what the module declared
   Proof: high, test — an uninstall on a VM removes the declared files and nothing else
-- [ ] Replace `eval echo ~user` in `lib/notify.sh` and `uninstall.sh` with `getent passwd`
+- [x] Replace `eval echo ~user` in `lib/notify.sh` and `uninstall.sh` with `getent passwd`
   Proof: low, check — `git grep` finds no `eval` left
 - [x] Fix the registry's two defects the VM harness showed: each `registry_set` leaves one more blank line in the file, and the user registry and its folder stay once their last entry is removed
   Proof: medium, test — `bats` tests of both, watched failing then passing

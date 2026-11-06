@@ -12,7 +12,7 @@
 #   sudo ./uninstall.sh --yes    # Skip confirmation
 #
 # Requires: bash 4+, sudo
-# Version: 0.1.0
+# Version: 0.1.1
 # =============================================================================
 
 set -euo pipefail
@@ -141,8 +141,9 @@ main() {
     [[ -d "$CONFIG_DIR" ]]      && echo "  - $CONFIG_DIR (registry, configs)"
     [[ -L "$SYMLINK_PATH" ]]    && echo "  - $SYMLINK_PATH (symlink)"
 
-    local user_registry
-    user_registry="$(eval echo ~"${SUDO_USER:-$USER}")/.config/system-scripts"
+    local user_home user_registry
+    user_home=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6) || true
+    user_registry="${user_home:?no home found for ${SUDO_USER:-$USER}}/.config/system-scripts"
     if [[ -d "$user_registry" ]]; then
         echo "  - $user_registry (user registry)"
     fi
