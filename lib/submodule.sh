@@ -88,10 +88,16 @@ _submodule_type() {
     echo "${type:-system}"
 }
 
-# Print the home of the user an install acts for: SUDO_USER under sudo,
-# the caller otherwise
+# Print the user an install acts for: SUDO_USER under sudo, the caller
+# otherwise, by id since USER may be unset, as in a container
+_submodule_user() {
+    echo "${SUDO_USER:-$(id -un)}"
+}
+
+# Print the home of the user an install acts for
 _submodule_user_home() {
-    local user="${SUDO_USER:-$USER}" home
+    local user home
+    user=$(_submodule_user)
     home=$(getent passwd "$user" | cut -d: -f6) || true
     if [[ -z "$home" ]]; then
         _sub_error "No home found for user '$user'"
@@ -107,7 +113,7 @@ _submodule_user_home() {
 # Sets: _sub_type, _real_user, _real_home, _real_uid
 _submodule_resolve_context() {
     _sub_type=$(_submodule_type "$1" "$2")
-    _real_user="${SUDO_USER:-$USER}"
+    _real_user=$(_submodule_user)
     _real_home=$(_submodule_user_home) || return 1
     _real_uid=$(id -u "$_real_user")
 }

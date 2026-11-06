@@ -167,7 +167,7 @@ mapfile -t deps < <(submodule_get_array "quarantine" "deps" "$MODULE_YML")
 | Function | Purpose |
 |----------|---------|
 | `_submodule_type` | A submodule's type, else the module's, else `system` |
-| `_submodule_user_home` | The home of `SUDO_USER`, or of the caller |
+| `_submodule_user` / `_submodule_user_home` | `SUDO_USER`, or the caller by `id -un`, and that user's home |
 | `_submodule_resolve_context` | Set `_sub_type`, `_real_user`, `_real_home`, `_real_uid`, declared local by the caller |
 | `_as_user` | Run a command as the user (`runuser` under root) |
 | `_submodule_owner_run` | Run a command as the user for a path in the user's home |

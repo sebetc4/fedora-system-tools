@@ -147,8 +147,8 @@ behind a `[y/N]` whose default skipped them; a missing `bw` stopping `make insta
 global context variables, which a dependency's install overwrote; a declared hook file missing
 skipped silently; templates' logrotate configs named after the file, so `bitwarden`'s and
 `vps`'s `user-logs.tpl` collided, now `<user>-<name>` as `docs/core/logrotate.md` said; unknown
-options ignored; unit failures silenced; five counters. Removed as dead code: the list form of
-`source`, unreachable since `submodule_get` prints a list as text, and `_module_pre_uninstall`.
+options ignored; unit failures silenced; five counters. Dead code went: the list form of `source`,
+unreachable, and `_module_pre_uninstall`.
 The engine's knowledge of `backup` became keys, `hook_scripts` and a `configs:` entry for the
 hook config. `backup` goes to 0.2.1, `bitwarden` to 0.1.2; the lib stays at this phase's 0.6.0.
 `ui_press_enter` read `/dev/tty` under `sudo`, which drops `NONINTERACTIVE`, so installers over
@@ -160,7 +160,8 @@ test, and HEAD's `notify.sh` and `ui.sh` fail theirs. `tests/vm/checks/backup.sh
 KDE: the install stops at `bitwarden`, the uninstall ends on `/dev/tty`, `levels.conf` and its
 folder are left. CUPS rewriting `/etc/cups/subscriptions.conf` failed one run, and joins the
 paths `guest-state.sh` excludes. The final tree passes `tests/vm/run.sh backup` on both VMs, 11/11
-checks twice and 0 leftovers but `~/.config/backup`.
+checks twice and 0 leftovers but `~/.config/backup`. CI, root without `USER`, failed the hook test:
+the user now comes from `id -un`, and `make test` passes in `fedora:45`.
 
 **Where the next session starts:**
 1. Seed config files from `my-config/` in `_install_submodule_configs`, never overwriting an
