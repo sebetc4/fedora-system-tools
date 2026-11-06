@@ -160,12 +160,6 @@ install, upgrade after a bump, reinstall and uninstall of `backup` behave, and t
 driven through `tmux`, install, reinstall, uninstall adding a dependent, and set a color. On
 GNOME, `uninstall.sh` removes `backup` and `notifications`, keeping `bookmarks.conf`.
 
-**Where the next session starts:**
-1. Close Phase 1: its eight tasks are done.
-- This machine's lib is 0.5.0, upgraded by the next `setup.sh` or `make install-lib`; its
-  `~/.config/system-scripts/registry` is still `root:root`. An upgrade of `backup/bitwarden`
-  leaves `/etc/logrotate.d/user-logs`, to remove by hand.
-
 ---
 
 ## Decisions
@@ -207,12 +201,22 @@ GNOME, `uninstall.sh` removes `backup` and `notifications`, keeping `bookmarks.c
 - `modules/backup/module.yml`, Phase 4's, changed here for the engine's keys alone: the files a
   backup install writes are the same, but for `bitwarden`'s logrotate config, now
   `/etc/logrotate.d/<user>-backup-bitwarden`.
-- `lib/ui.sh`, `lib/notify.sh` and `lib/registry.sh`, already reviewed, were fixed again here:
-  the harness and the probe showed what reading had not.
-- The library's API changed again under 0.6.0: `ui_choose_many`, `check_root` exiting instead
-  of re-executing, `SYSTEM_REGISTRY_PATH`.
-- `phase-3-clamav.md`: its review task now names `clamav.conf`, which the core hook installs and
-  `my-config/` should seed like a `configs:` entry.
+- `lib/ui.sh`, `lib/notify.sh` and `lib/registry.sh`, already reviewed, were fixed again: the
+  harness and the probe showed what reading had not. The API changed again under 0.6.0.
+- `phase-3-clamav.md`: its review task now names `clamav.conf`, which `my-config/` should seed.
+
 ---
 
 ## Assessment
+
+Phase 1 brought the library, the engine, `setup.sh`, the bootstrap and the release path to the
+checklist, each change proven by a test watched failing or a run on both VMs. Reading missed
+most of what mattered: the harness and the probes found the root-owned home folders, the user
+hooks an uninstall deleted, the installers failing without a terminal and the modules the
+complete uninstall skipped. The library stays at an unreleased 0.6.0; Phase 7's release carries
+it, `uninstall.sh` with it.
+
+Phase 2 needs first: `notifications` is standalone, so the engine's rule for empty home folders
+(`_submodule_prune_home_dir`) is the one to copy, not to call; `tests/vm/checks/backup.sh` is the
+model of checks, owners and a home free of root included; and this machine's user registry,
+still `root:root`, is rewritten as the user by its next install.
