@@ -38,6 +38,7 @@ validation_add_error() {
 # Optional: pass a label for the config file being validated
 validation_check() {
     local config_label="${1:-}"
+    local err
 
     if [[ ${#_VALIDATION_ERRORS[@]} -eq 0 ]]; then
         return 0
@@ -76,7 +77,7 @@ validate_boolean() {
     fi
 }
 
-# Value must be a positive integer
+# Value must be a non-negative integer (digits only)
 validate_integer() {
     local key="$1"
     local value="$2"

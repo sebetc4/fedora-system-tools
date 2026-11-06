@@ -83,6 +83,25 @@ without any project release, plus the check that both copies are identical, whic
 the real API, the function gives `v0.6.0`. Both scripts go to 0.1.1, and
 `docs/core/versioning.md` says how the release is picked.
 
+Review of `lib/`, first the files with pure functions. `format.bats` caught `format_size`
+printing 1024 as `1024 B` and 1 GiB as `1024.0 MB`, its thresholds being `-gt`: each unit now
+starts at its exact size, and the division runs in `awk`, which drops the `bc` dependency and
+writes a `.` under a French locale. `yaml.bats`, nine tests on a config in the test's folder,
+passed as written; it documents that the array readers return 1 on an empty list, which the
+`hdd` and `hdd-both` backups use for their defaults (`|| echo "/"`), and the examples of
+`lib/yaml.sh` and its documents, which piped them into `while`, now read them through process
+substitution, since under `pipefail` a pipe would end the script without a message on an empty
+list. CI installs `yq` for these tests. `validate.bats`, eight tests, passed as written;
+`validation_check` no longer leaks its loop variable. `paths.bats` found two defects of
+`lib/paths.sh`. Without `user-dirs.dirs`, `xdg-user-dir` answers with the home, which the probe
+then took as the download folder, so ClamAV would have watched the whole home; the home is now
+never returned. And `paths.conf`, which root scripts source, wrote each folder in double
+quotes: a probe of the old code as root reads it, a folder named `dl $(touch <file>)`, creates
+the file when `paths.conf` is sourced, and the new code, which single-quotes every value,
+creates nothing. `xdg-user-dir` went too, since it sources `user-dirs.dirs` itself;
+`user-dirs.dirs` is parsed as text alone. An installed `paths.conf` is kept as it is, per
+the no-migration rule.
+
 ---
 
 ## Decisions

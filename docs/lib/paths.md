@@ -10,11 +10,14 @@
 
 ## Detection Strategy
 
-Three methods tried in order:
+Two methods tried in order:
 
-1. **`xdg-user-dir DOWNLOAD`** — if available and running as the target user
-2. **`~/.config/user-dirs.dirs`** — parses `XDG_DOWNLOAD_DIR` from config file, expands `$HOME`
-3. **Filesystem probe** — checks `~/Téléchargements` then `~/Downloads`; falls back to locale-based default
+1. **`~/.config/user-dirs.dirs`** — parses `XDG_DOWNLOAD_DIR` as text and expands `$HOME`. The
+   file is never sourced, nor read through `xdg-user-dir`, which sources it: under `sudo`, a
+   folder name holding `$(...)` would otherwise run as root.
+2. **Filesystem probe** — when XDG names no folder, names the home itself (XDG's fallback) or a
+   folder that does not exist: checks `~/Téléchargements` then `~/Downloads`, and falls back to a
+   locale-based default. The home is never returned, which would make ClamAV watch all of it.
 
 ---
 
@@ -34,9 +37,9 @@ detect_download_dir "alice"   # specific user
 Returns a deduplicated, sorted list of directories to monitor (one per line). Always includes the main download dir, plus any extra common locations that exist on disk.
 
 ```bash
-detect_watch_dirs | while IFS= read -r dir; do
+while IFS= read -r dir; do
     echo "Watching: $dir"
-done
+done < <(detect_watch_dirs)
 ```
 
 ### `generate_paths_conf [user]`
@@ -48,6 +51,9 @@ Generated variables:
 - `DOWNLOAD_DIR` — main download directory
 - `EXPORT_DIR` — destination for processed files (same as download dir)
 - `WATCH_DIRS` — bash array of directories to monitor
+
+Root scripts source this file, so every value is single-quoted, a `'` written `'\''`: a folder
+name stays data whatever it holds.
 
 ```bash
 generate_paths_conf "$USER" > /etc/system-scripts/paths.conf

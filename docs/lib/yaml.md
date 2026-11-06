@@ -33,12 +33,16 @@ mount=$(parse_yaml "backup.hdd_mount")
 
 ### `parse_yaml_array key [file]`
 
-Read an array, outputting one item per line. Filters out `null` entries.
+Read an array, outputting one item per line. Filters out `null` entries. Returns 1 when the list
+is empty or missing, so read it through process substitution: piped into `while` under
+`set -euo pipefail`, an empty list ends the script without a message.
 
 ```bash
-parse_yaml_array "exclusions.home" | while read -r item; do
+while read -r item; do
     echo "Excluding: $item"
-done
+done < <(parse_yaml_array "exclusions.home")
+
+dirs=$(parse_yaml_array "directories" || echo "/")   # default when empty
 ```
 
 ### `parse_yaml_count key [file]`
@@ -60,10 +64,11 @@ src=$(parse_yaml_index "paths" 0 "source")
 
 ### `parse_yaml_index_array key index field [file]`
 
-Read an array field from a list element by index. One item per line.
+Read an array field from a list element by index. One item per line; returns 1 when empty or
+missing, like `parse_yaml_array`.
 
 ```bash
-parse_yaml_index_array "paths" 0 "exclusions" | while read -r excl; do
+while read -r excl; do
     echo "Skip: $excl"
-done
+done < <(parse_yaml_index_array "paths" 0 "exclusions")
 ```

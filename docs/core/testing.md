@@ -8,7 +8,8 @@ module's whole install cycle on the Fedora test VMs. What a module review expect
 ## Unit Tests
 
 `make test` runs every `*.bats` file under `tests/unit/` with `bats`, packaged in Fedora
-(`sudo dnf install bats`). A test file sits at the path of the source it tests:
+(`sudo dnf install bats`); the tests of `lib/yaml.sh` also need `yq`, which `make install-lib`
+installs. A test file sits at the path of the source it tests:
 `tests/unit/lib/registry.bats` tests `lib/registry.sh`. It sources that file from the checkout,
 never from `/usr/local/lib/system-scripts`, so it tests the working tree. `make shellcheck` lints
 the `*.bats` files with the scripts.

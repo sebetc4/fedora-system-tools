@@ -12,9 +12,10 @@ jobs:
     # Fedora's own ShellCheck and bats: the versions a Fedora workstation runs
     container: registry.fedoraproject.org/fedora:45
     steps:
-      # git first, so that checkout makes a real clone for `git ls-files`
+      # git first, so that checkout makes a real clone for `git ls-files`;
+      # yq for the tests of lib/yaml.sh
       - name: Install tools
-        run: dnf install -y bats git make ShellCheck
+        run: dnf install -y bats git make ShellCheck yq
 
       - uses: actions/checkout@v4
 

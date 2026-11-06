@@ -322,10 +322,10 @@ YAML_FILE="$HOME/.config/backup/config.yml"
 mount=$(parse_yaml "backup.hdd_mount")
 enabled=$(parse_yaml "snapshots.enabled")
 
-# Read an array (one element per line)
-parse_yaml_array "exclusions.home" | while read -r pattern; do
+# Read an array (one element per line; returns 1 when empty, so never pipe it)
+while read -r pattern; do
     echo "Exclude: $pattern"
-done
+done < <(parse_yaml_array "exclusions.home")
 
 # Specific file (without using YAML_FILE)
 value=$(parse_yaml "key.subkey" "/path/to/other.yml")
@@ -436,5 +436,4 @@ Each module has a **double-sourcing guard** (`_LIB_*_LOADED`) — it is safe to 
 |------|-------------|------------|
 | [Gum](https://github.com/charmbracelet/gum) | ui.sh | No — pure bash fallback |
 | [yq](https://github.com/mikefarah/yq) | yaml.sh, submodule.sh, every module installer | Yes — installed by `lib/install.sh` |
-| bc | format.sh | Yes (installed by default on Fedora) |
 

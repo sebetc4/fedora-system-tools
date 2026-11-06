@@ -11,9 +11,9 @@
 # Functions:
 #   detect_download_dir [user]                  - Detect XDG download directory
 #   detect_watch_dirs [user]                    - Build array of dirs to monitor
-#   generate_paths_conf [user] [output_file]    - Generate paths.conf
+#   generate_paths_conf [user]                  - Print paths.conf on stdout
 #
-# Version: 0.1.0
+# Version: 0.2.0
 # =============================================================================
 
 [[ -n "${_LIB_PATHS_LOADED:-}" ]] && return 0
@@ -21,40 +21,43 @@ readonly _LIB_PATHS_LOADED=1
 
 source "$(dirname "${BASH_SOURCE[0]}")/core.sh"
 
+# Home directory of a user: $HOME for the caller, getent otherwise
+_paths_home() {
+    local user="$1" home_dir
+    if [[ "$user" == "$USER" ]]; then
+        home_dir="$HOME"
+    else
+        home_dir=$(getent passwd "$user" | cut -d: -f6) || true
+        [[ -n "$home_dir" ]] || home_dir="/home/$user"
+    fi
+    echo "$home_dir"
+}
+
+# Quote a value for a file that will be sourced: single quotes, each ' as '\''
+_paths_quote() {
+    printf "'%s'" "${1//\'/\'\\\'\'}"
+}
+
 # Detect download directory for a user using XDG
 detect_download_dir() {
     local user="${1:-$USER}"
     local home_dir
-
-    # Get user's home directory
-    if [[ "$user" == "$USER" ]]; then
-        home_dir="$HOME"
-    else
-        home_dir=$(getent passwd "$user" | cut -d: -f6)
-        [[ -z "$home_dir" ]] && home_dir="/home/$user"
-    fi
+    home_dir=$(_paths_home "$user")
 
     local download_dir=""
 
-    # Method 1: Use xdg-user-dir if available and running as the user
-    if [[ "$user" == "$USER" ]] && command -v xdg-user-dir &>/dev/null; then
-        download_dir=$(xdg-user-dir DOWNLOAD 2>/dev/null)
+    # Method 1: XDG_DOWNLOAD_DIR from user-dirs.dirs, parsed as text: the file
+    # is never sourced (xdg-user-dir does), so a folder name stays data
+    # Format: XDG_DOWNLOAD_DIR="$HOME/Téléchargements"
+    local user_dirs_file="$home_dir/.config/user-dirs.dirs"
+    if [[ -f "$user_dirs_file" ]]; then
+        download_dir=$(grep -E '^XDG_DOWNLOAD_DIR=' "$user_dirs_file" | cut -d'"' -f2) || true
+        download_dir="${download_dir//\$HOME/$home_dir}"
     fi
 
-    # Method 2: Read from user-dirs.dirs config file
-    if [[ -z "$download_dir" || "$download_dir" == "$home_dir" ]]; then
-        local user_dirs_file="$home_dir/.config/user-dirs.dirs"
-        if [[ -f "$user_dirs_file" ]]; then
-            # Parse XDG_DOWNLOAD_DIR from the file
-            # Format: XDG_DOWNLOAD_DIR="$HOME/Téléchargements"
-            download_dir=$(grep -E '^XDG_DOWNLOAD_DIR=' "$user_dirs_file" 2>/dev/null | cut -d'"' -f2)
-            # Expand $HOME in the path
-            download_dir="${download_dir//\$HOME/$home_dir}"
-        fi
-    fi
-
-    # Method 3: Check for common directory names
-    if [[ -z "$download_dir" || ! -d "$download_dir" ]]; then
+    # Method 2: common directory names, when XDG names none, the home itself
+    # (XDG's own fallback) or a folder that does not exist
+    if [[ -z "$download_dir" || "$download_dir" == "$home_dir" || ! -d "$download_dir" ]]; then
         # Check French first (more specific), then English
         if [[ -d "$home_dir/Téléchargements" ]]; then
             download_dir="$home_dir/Téléchargements"
@@ -78,13 +81,7 @@ detect_download_dir() {
 detect_watch_dirs() {
     local user="${1:-$USER}"
     local home_dir
-
-    if [[ "$user" == "$USER" ]]; then
-        home_dir="$HOME"
-    else
-        home_dir=$(getent passwd "$user" | cut -d: -f6)
-        [[ -z "$home_dir" ]] && home_dir="/home/$user"
-    fi
+    home_dir=$(_paths_home "$user")
 
     local download_dir
     download_dir=$(detect_download_dir "$user")
@@ -96,6 +93,7 @@ detect_watch_dirs() {
     dirs+=("$download_dir")
 
     # Check for other common download locations that might exist
+    local extra_dir
     for extra_dir in "$home_dir/Downloads" "$home_dir/Téléchargements"; do
         if [[ -d "$extra_dir" && "$extra_dir" != "$download_dir" ]]; then
             dirs+=("$extra_dir")
@@ -106,26 +104,15 @@ detect_watch_dirs() {
     printf '%s\n' "${dirs[@]}" | sort -u
 }
 
-# Generate paths.conf configuration file
+# Print paths.conf on stdout. Root scripts source it, so every value is
+# single-quoted: a folder name holding $(...) or a quote stays data.
 generate_paths_conf() {
     local user="${1:-$USER}"
-
     local home_dir
-    if [[ "$user" == "$USER" ]]; then
-        home_dir="$HOME"
-    else
-        home_dir=$(getent passwd "$user" | cut -d: -f6)
-        [[ -z "$home_dir" ]] && home_dir="/home/$user"
-    fi
+    home_dir=$(_paths_home "$user")
 
     local download_dir
     download_dir=$(detect_download_dir "$user")
-
-    # Get watch dirs as array
-    local watch_dirs_str=""
-    while IFS= read -r dir; do
-        [[ -n "$dir" ]] && watch_dirs_str+="    \"$dir\"\n"
-    done < <(detect_watch_dirs "$user")
 
     cat << EOF
 # =============================================================================
@@ -140,17 +127,21 @@ generate_paths_conf() {
 # =============================================================================
 
 # Target user for downloads
-TARGET_USER="$user"
-TARGET_HOME="$home_dir"
+TARGET_USER=$(_paths_quote "$user")
+TARGET_HOME=$(_paths_quote "$home_dir")
 
 # Main download directory (locale-aware)
-DOWNLOAD_DIR="$download_dir"
+DOWNLOAD_DIR=$(_paths_quote "$download_dir")
 
 # Export destination (where files are moved after processing)
-EXPORT_DIR="$download_dir"
+EXPORT_DIR=$(_paths_quote "$download_dir")
 
 # Directories to monitor for automatic scanning
 WATCH_DIRS=(
-$(echo -e "$watch_dirs_str"))
 EOF
+    local dir
+    while IFS= read -r dir; do
+        printf '    %s\n' "$(_paths_quote "$dir")"
+    done < <(detect_watch_dirs "$user")
+    echo ")"
 }

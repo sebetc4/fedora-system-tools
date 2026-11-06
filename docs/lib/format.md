@@ -21,7 +21,8 @@ format_size 2048         # "2.0 KB"
 format_size 512          # "512 B"
 ```
 
-Uses `bc` for floating-point division. Thresholds: GB > MB > KB > B.
+Each unit starts at its exact size: 1024 bytes print as `1.0 KB`, 1023 as `1023 B`. The division
+runs in `awk`, rounded to one decimal, with a `.` whatever the locale.
 
 ### `format_date timestamp`
 
