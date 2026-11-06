@@ -177,7 +177,9 @@ v0.2.0              # next project release
 ```
 
 The release tarball contains everything: `lib/`, `modules/`, `setup.sh`, `Makefile`.
-This is what `install.sh` and `--self-update` download.
+This is what `install.sh` and `--self-update` download. Both read GitHub's list of releases and
+take the highest `vX.Y.Z` tag, never `releases/latest`: a module tag or a pre-release
+(`v1.0.0-rc1`) published after it would become that "latest" and is skipped.
 
 ### Module-level tags (`<module>-v*`)
 

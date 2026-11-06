@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (38% — 3/8)
+**Current Status:** 🟡 In Progress (50% — 4/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -42,7 +42,7 @@ The modules themselves (phases 2 to 6).
   Proof: medium, test — a VM install with a copy in `my-config/` installs the copy, and a second install leaves an edited config untouched
 
 ### Release
-- [ ] Fix the release path: a module tag (`release.yml`) becomes `releases/latest`, which `install.sh` and `setup.sh --self-update` cannot read; drop module tags or select the newest `v*` release
+- [x] Fix the release path: a module tag (`release.yml`) becomes `releases/latest`, which `install.sh` and `setup.sh --self-update` cannot read; drop module tags or select the newest `v*` release
   Proof: medium, test — version detection against a release list holding a module tag
 
 ---

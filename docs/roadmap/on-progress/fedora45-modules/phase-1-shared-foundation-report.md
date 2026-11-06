@@ -70,6 +70,19 @@ pass, the leftovers the same 3 folders as before. `README.md` no longer says `yq
 its own and names `make`, and `docs/lib/install.md` and `docs/lib/overview.md` describe the new
 step.
 
+Release path, choosing to select the newest `v*` release over dropping module tags: it also
+guards against a pre-release or a release made by hand, and keeps the release process
+`docs/core/versioning.md` documents. The old parser, given a `releases/latest` answer whose
+`tag_name` is `clamav-v0.7.0`, finds no tag, so `install.sh` and `--self-update` would stop on
+"Could not determine latest release". `install.sh` and `setup.sh` now read
+`releases?per_page=100` and pick the highest `vX.Y.Z` through `latest_project_tag`, still without
+`jq`, a function each script holds since neither can source the other. `tests/unit/install.bats`
+reads it out of both files: a newer module release, a pre-release, numeric order and a list
+without any project release, plus the check that both copies are identical, which failed until
+`setup.sh` had its copy; with `sort -V` removed, the order and module-tag tests fail. Against
+the real API, the function gives `v0.6.0`. Both scripts go to 0.1.1, and
+`docs/core/versioning.md` says how the release is picked.
+
 ---
 
 ## Decisions

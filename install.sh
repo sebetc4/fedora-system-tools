@@ -10,7 +10,7 @@
 #   curl -sSL ... | bash -s -- --all    # Bootstrap + install all modules
 #
 # Requires: bash 4+, curl, tar, sudo
-# Version: 0.1.0
+# Version: 0.1.1
 # =============================================================================
 
 set -euo pipefail
@@ -69,16 +69,25 @@ check_prerequisites() {
 # VERSION DETECTION
 # =============================================================================
 
+# Print the newest project release tag (vX.Y.Z) of a GitHub releases list read
+# on stdin, without jq. Module tags (clamav-v0.2.0) and pre-releases
+# (v1.0.0-rc1) are skipped: releases/latest may be either. setup.sh holds the
+# same function, which tests/unit/install.bats keeps identical.
+latest_project_tag() {
+    grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"v[0-9]+\.[0-9]+\.[0-9]+"' \
+        | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' \
+        | sort -V | tail -n 1 | grep .
+}
+
 get_latest_version() {
     local response
-    response=$(curl -sSL "${API_URL}/latest" 2>/dev/null) || {
+    response=$(curl -sSL "${API_URL}?per_page=100" 2>/dev/null) || {
         error "Failed to query GitHub API"
         exit 1
     }
 
-    # Extract tag_name from JSON (no jq dependency)
     local tag
-    tag=$(echo "$response" | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -o '"v[^"]*"' | tr -d '"')
+    tag=$(latest_project_tag <<< "$response") || true
 
     if [[ -z "$tag" ]]; then
         error "Could not determine latest release from GitHub"

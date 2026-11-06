@@ -6,7 +6,7 @@
 # Provides an interactive menu to install, update, uninstall, and monitor
 # modules and submodules. Also supports non-interactive CLI flags.
 #
-# Version: 0.1.0
+# Version: 0.1.1
 #
 # Usage:
 #   ./setup.sh                                # Interactive menu
@@ -1939,11 +1939,21 @@ fi
 readonly GITHUB_REPO="sebetc4/fedora-system-tools"
 readonly INSTALL_DIR="/opt/fedora-system-tools"
 
+# Print the newest project release tag (vX.Y.Z) of a GitHub releases list read
+# on stdin, without jq. Module tags (clamav-v0.2.0) and pre-releases
+# (v1.0.0-rc1) are skipped: releases/latest may be either. install.sh holds the
+# same function, which tests/unit/install.bats keeps identical.
+latest_project_tag() {
+    grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"v[0-9]+\.[0-9]+\.[0-9]+"' \
+        | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' \
+        | sort -V | tail -n 1 | grep .
+}
+
 # Check if a newer release is available on GitHub
 # Sets SELF_UPDATE_TAG and SELF_UPDATE_LATEST on success
 # Returns: 0 = update available, 1 = up to date, 2 = error
 check_remote_version() {
-    local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+    local api_url="https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=100"
 
     local response
     response=$(curl -sSL --max-time 10 "$api_url" 2>/dev/null) || {
@@ -1952,7 +1962,7 @@ check_remote_version() {
     }
 
     local tag
-    tag=$(echo "$response" | grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -o '"v[^"]*"' | tr -d '"')
+    tag=$(latest_project_tag <<< "$response") || true
 
     if [[ -z "$tag" ]]; then
         warn "Could not determine latest release"
