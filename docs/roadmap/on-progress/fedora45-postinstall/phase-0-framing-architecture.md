@@ -4,9 +4,9 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (88% — 14/16)
+**Current Status:** 🟢 Done (100% — 16/16)
 **Started:** 2026-10-21
-**Completed:** {{COMPLETION_DATE}}
+**Completed:** 2026-11-06
 **Blocked By:** —
 
 ---
@@ -64,8 +64,8 @@ Implementing any step. Triaging individual packages, Flatpaks, or extensions (ph
 - [x] Write the decisions with their rationale in `postinstall/README.md`
 
 ### Test Environment
-- [ ] Create a Fedora 45 Workstation VM (final release image) in the `/vm` pool, installed on btrfs, with a clean-install snapshot to roll back to
-- [ ] Create a Fedora 45 KDE Plasma Desktop VM (final release image) in the `/vm` pool, installed on btrfs, with a clean-install snapshot to roll back to
+- [x] Create a Fedora 45 Workstation VM (final release image) in the `/vm` pool, installed on btrfs, with a clean-install snapshot to roll back to
+- [x] Create a Fedora 45 KDE Plasma Desktop VM (final release image) in the `/vm` pool, installed on btrfs, with a clean-install snapshot to roll back to
 
 ---
 
@@ -89,6 +89,6 @@ The Fedora 45 Workstation and KDE Plasma Desktop final release images, in `/vm/i
 
 ## Acceptance Criteria
 
-- [ ] The inventory covers packages, Flatpaks, extensions, dconf, and `/etc` changes, and its location is recorded in the report
-- [ ] Every architecture decision listed above is written in `postinstall/README.md` with its rationale
-- [ ] Each Fedora 45 VM boots to a fresh session of its desktop and has a restorable snapshot
+- [x] The inventory covers packages, Flatpaks, extensions, dconf, and `/etc` changes, and its location is recorded in the report
+- [x] Every architecture decision listed above is written in `postinstall/README.md` with its rationale
+- [x] Each Fedora 45 VM boots to a fresh session of its desktop and has a restorable snapshot

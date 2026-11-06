@@ -136,7 +136,7 @@ The decisions were proposed two at a time and approved by the user (see Decision
    several devices, naming a Legion 5 15IMH05H (Intel Core i7, RTX 2060).
 4. Multi-device: the single `legion-7` profile became the chain `default` → `personal` → machine
    profile, with `legion-5` created but validated after this roadmap. The roadmap's scope and
-   phases 1, 3, and 8 were adjusted (see Changes To Later Phases). The detection decision was
+   phases 1, 3, and 8 were adjusted (see Deviations). The detection decision was
    aligned with phase 1's preflight task: below Fedora 45 the tool runs in dry-run only, which
    lets it be tried on this Fedora 44 machine.
 
@@ -168,7 +168,7 @@ to `/usr/share/dnf5/repos.d` both landed, as phases 1 and 2 assume.
 Reviewed the whole repository with the user; the review is in
 `reviews/2026-11-04-repository-review.md` (untracked, `/reviews` is ignored). What matters for this
 roadmap: the Legion 7 boots the custom `audio` kernel for its sound, so build-kernel must work on
-Fedora 45 before the real-machine run (added to phase 8's dependencies, see Problems And
+Fedora 45 before the real-machine run (added to phase 8's dependencies, see
 Deviations); and the `nautilus`, `clamav/usb-clamscan` and `backup/vps` modules are the only parts
 of the repository tied to a desktop.
 
@@ -228,28 +228,41 @@ The VMs' addresses, the account's password and the virtual keyboard script are k
 `study/fedora45-vms/` (untracked), since the scratchpad holding the script does not outlive the
 session. The session closed before any SSH setup, on the user's request.
 
-**Where the next session starts:**
-1. Set up terminal access to the two VMs, as the user asked at the close: "on reprends avec la
-   config ssh ou régle de permission a la prochaine session". Either the user enables `sshd` in
-   each VM and installs a host key, `~/.ssh/fedora45-vms` without a passphrase, with `ssh-copy-id`,
-   or a Bash permission rule lets the session do it.
-2. Try `detect_desktop`'s replacement through `sudo` on both VMs and correct
-   `postinstall/README.md` and the Detection decision below.
-3. Eject the ISOs, take the `clean-install` snapshots with `sshd` and the key in them, so that each
-   restore stays reachable by terminal, restore each once to prove it, tick the two VM tasks and
-   close phase 0.
-4. Open phase 1 of this roadmap, or phase 0 of roadmap `fedora45-modules`, which also waits for
-   the VMs.
-- Question to the user: run the SSH commands themselves, or add the permission rule?
-- Pending: both VMs are still running, with no snapshot. The Workstation terminal holds an unrun
-  `sudo runuser…` line, to clear with Ctrl+U. `.gitignore` holds a change that is not this phase's
-  work (`/roadmap` replaced by `/notes`), neither explained nor committed.
+### 2026-11-06
+
+Resumed the phase. The host had rebooted on 2026-11-05, so both VMs were stopped; their ISOs were
+ejected and they were started again, on the same addresses. The user enabled `sshd` in each VM,
+gave `seb` passwordless `sudo` (`/etc/sudoers.d/90-seb-nopasswd`) and installed the host key
+`~/.ssh/fedora45-vms` with `ssh-copy-id`: from here on the VMs are driven by SSH (see Decisions).
+The `.gitignore` change found at the resume was the user's (`/notes` ignored in place of
+`/roadmap`), committed on its own.
+
+Tried `detect_desktop`'s replacement through `sudo` on both VMs, a desktop session open on each.
+`runuser -u seb -- systemctl --user show-environment`, with `XDG_RUNTIME_DIR` set, gives
+`XDG_CURRENT_DESKTOP=GNOME` on Workstation and `KDE` on Plasma; the graphical `loginctl` sessions
+are `Type=wayland`, their `Desktop` empty under `gdm-password` and `KDE` under `plasmalogin`. A
+user-scope read through `runuser` with the session's bus works as the root/user split assumes:
+`gsettings` returns the `fr+azerty` input source. The Detection decision and
+`postinstall/README.md` were corrected.
+
+Powered both VMs off and took an internal snapshot `clean-install` of each, shut off: Fedora 45
+with no update, kernel `7.2.11-300.fc45`, Secure Boot enabled, `sshd` enabled and the key
+installed. Restore proven on both: a marker written in `/root` after the snapshot is gone after
+`virsh snapshot-revert`, the VM boots to its greeter (`gdm` on Workstation, `plasmalogin` on KDE)
+and SSH answers by key. The addresses, the key's name and the SSH command are in
+`study/fedora45-vms/access.md` (untracked).
 
 
 ---
 
 ## Decisions
 
+- **The test VMs are driven by SSH, with passwordless `sudo` for `seb`.** The user asked for
+  terminal access wherever possible: the guest agent is confined by SELinux, and the virtual
+  keyboard loses keys. `sshd`, the key `~/.ssh/fedora45-vms` and the drop-in
+  `/etc/sudoers.d/90-seb-nopasswd` are in the `clean-install` snapshots, so every restore stays
+  reachable and `sudo` runs without a password in a command line. Consequence for later phases:
+  runs on the VMs never show a `sudo` prompt, which only the real machine exercises.
 - **The test VMs are not encrypted.** A passphrase at each boot would block unattended reboots and
   snapshot restores, and they hold nothing sensitive. The real machine stays on LUKS, so these VMs
   validate nothing about it. Their account's throwaway password stays out of the repository.
@@ -280,7 +293,7 @@ session. The session closed before any SSH setup, on the user's request.
 - **No post-install step installs fedora-system-tools.** Its installation is already simple and
   handled by `make` or `setup.sh`, and `postinstall/` may later become a fedora-system-tools module
   itself. `postinstall/` therefore stays self-contained, so that a later move into `modules/` does
-  not require a redesign. Phase 8 loses its `system-tools` step (see Changes To Later Phases).
+  not require a redesign. Phase 8 loses its `system-tools` step (see Deviations).
 - **Profiles in three levels, for several machines.** `default` (any Fedora 45), `personal` (the
   user's choices shared by all their machines: packages, Flatpaks, extensions, dconf), and one
   profile per machine holding only what detection cannot infer: `legion-7` (this workstation,
@@ -328,7 +341,8 @@ session. The session closed before any SSH setup, on the user's request.
   `detect_gpu_vendors` (`lspci -n` display classes, vendor ids; several on hybrid laptops),
   `detect_secure_boot` (the `SecureBoot` EFI variable under `/sys`: `enabled`, `disabled`,
   `unsupported`; no `mokutil` dependency), `detect_root_btrfs` (`is_btrfs /` from `lib/fs.sh`),
-  `detect_desktop` (the `Desktop` property of the user's `loginctl` session), `detect_virt`
+  `detect_desktop` (`XDG_CURRENT_DESKTOP` in the user's systemd manager environment, read only
+  while `loginctl` shows the user an active `wayland` or `x11` session), `detect_virt`
   (`systemd-detect-virt`, for the test VM), `detect_fedora` (`/etc/os-release`), `detect_machine`
   (vendor and model from `/sys/class/dmi/id/`, shown in the header). The tool refuses
   to run outside Fedora or below Fedora 45, except with `--dry-run`, so that it can be tried on
@@ -357,13 +371,7 @@ session. The session closed before any SSH setup, on the user's request.
 
 ---
 
-## Files Changed
-
-
-
----
-
-## Problems And Deviations
+## Deviations
 
 - 2026-11-04, adjustments: `phase-3-nvidia-hardware.md`'s Secure Boot task now reads the state
   from `detect_secure_boot` instead of `mokutil --sb-state`, matching the detection decision; a
@@ -404,14 +412,9 @@ session. The session closed before any SSH setup, on the user's request.
 - The VM task of this phase split in two, one per desktop: the phase goes from 15 to 16 tasks.
 - `README.md` no longer links `CLAUDE.md`, which git ignores: the link broke in every other clone.
 - 2026-11-04, defect in the Detection decision: `detect_desktop` reads a `loginctl` property that is
-  empty under GDM, so it would skip every desktop step on GNOME. Left open: to be fixed in this
-  phase once the replacement is tried on both VMs, before phase 1 implements `lib/detect.sh`.
-
-
----
-
-## Changes To Later Phases
-
+  empty under GDM, so it would skip every desktop step on GNOME. Fixed on 2026-11-06: the
+  function reads `XDG_CURRENT_DESKTOP` from the user's systemd manager, tried through `sudo` on
+  both VMs; the Detection decision and `postinstall/README.md` say so.
 - `phase-8-integration-validation.md`, **approved by the user on 2026-10-21** (restructuring: a
   task removed without being moved, and the Objective changed): removed the task "Step
   `system-tools`: run `make install-lib`, then install the profile's modules and submodules with
@@ -440,3 +443,18 @@ session. The session closed before any SSH setup, on the user's request.
 
 ## Assessment
 
+Phase 0 delivered what the roadmap builds on: an inventory of the Fedora 44 workstation in
+`study/fedora44-inventory/` (packages, Flatpaks, GNOME extensions, dconf, `/etc` changes), the
+architecture of `postinstall/` written with its rationale in `postinstall/README.md`, and two
+Fedora 45 test VMs, Workstation and KDE Plasma Desktop, each with a restorable `clean-install`
+snapshot and reachable by SSH. It ran far longer than planned: the wait for the final Fedora 45
+image, then a repository review and a module triage that became roadmap `fedora45-modules`, the
+GNOME-and-Plasma restructuring of phases 3 to 8, and the move of `firewall` to a phase 7 step.
+Trying detection on real installs caught one design defect before any code, the `loginctl`
+`Desktop` property empty under GDM; it is fixed.
+
+Phase 1 needs first the step model, the profile format with its desktop-specific files, and
+`detect_desktop` reading `XDG_CURRENT_DESKTOP` from the user's systemd manager, all in
+`postinstall/README.md`. Its dry-run criterion runs on the VMs over SSH
+(`ssh -i ~/.ssh/fedora45-vms seb@<address>`), and a VM is reset, shut off, with
+`virsh -c qemu:///system snapshot-revert <vm> clean-install`.

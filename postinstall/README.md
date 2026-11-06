@@ -146,7 +146,7 @@ themselves.
 | `detect_gpu_vendors` | `lspci -n`, display classes, vendor ids | `nvidia`, `intel`, `amd`; several on hybrid laptops |
 | `detect_secure_boot` | the `SecureBoot` EFI variable under `/sys/firmware/efi/efivars` | `enabled`, `disabled`, `unsupported` |
 | `detect_root_btrfs` | `is_btrfs /` from `lib/fs.sh` | yes / no |
-| `detect_desktop` | the `Desktop` property of the user's `loginctl` session | `gnome`, `kde`, `other` (every desktop step skipped) |
+| `detect_desktop` | `XDG_CURRENT_DESKTOP` in the user's systemd manager environment, read only while the user has an active `wayland` or `x11` session | `gnome`, `kde`, `other` (every desktop step skipped) |
 | `detect_virt` | `systemd-detect-virt` | `none`, `kvm`, … |
 | `detect_fedora` | `/etc/os-release` | version and variant |
 | `detect_machine` | `/sys/class/dmi/id/` | vendor and model |
@@ -157,6 +157,16 @@ be tried on an older release without changing it.
 **Why:** a step decides from the machine it runs on, never from hard-coded assumptions, which is
 what lets one tool serve several machines. Reading the EFI variable directly avoids a dependency on
 `mokutil`.
+
+**Why the desktop comes from the user manager:** the `Desktop` property of the `loginctl` session
+is empty under GDM, while `plasmalogin` sets it to `KDE`, so it would skip every desktop step on
+GNOME. The user's systemd manager, which both desktops feed at login, holds `XDG_CURRENT_DESKTOP`
+(`GNOME` on Workstation, `KDE` on Plasma), read as root with
+`runuser -u <user> -- systemctl --user show-environment` and `XDG_RUNTIME_DIR` set; this was checked
+through `sudo` on both Fedora 45 VMs. The variable may hold a colon-separated list, matched by its
+`GNOME` or `KDE` entry. The manager can outlive a desktop logout when another session of the user
+remains, so the value counts only while `loginctl` shows the user an active `wayland` or `x11`
+session.
 
 ---
 

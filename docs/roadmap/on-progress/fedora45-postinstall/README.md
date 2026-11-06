@@ -18,7 +18,7 @@ deliberate target state from a chain of profiles, and uses it for the Legion 7's
 ## Overall Progress
 
 ```
-Phase 0  Framing & Architecture     🟡 ██████████████████░░  88%  (14/16)
+Phase 0  Framing & Architecture     🟢 ████████████████████ 100%  (16/16)
 Phase 1  Core Framework             🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/14)
 Phase 2  Repositories & Multimedia  🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/9)
 Phase 3  NVIDIA & Hardware          🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/8)
@@ -27,12 +27,11 @@ Phase 5  Flatpaks                   🔴 ░░░░░░░░░░░░░
 Phase 6  Desktop                    🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/12)
 Phase 7  System Settings            🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
 Phase 8  Integration & Validation   🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
-TOTAL                                  ███░░░░░░░░░░░░░░░░░  16%  (14/85)
+TOTAL                                  ████░░░░░░░░░░░░░░░░  19%  (16/85)
 ```
 
-**Current Phase:** Phase 0 — Framing & Architecture
+**Current Phase:** —
 **Blocked By:** —
-**Next Milestone:** Phase 0 — Framing & Architecture
 
 ---
 
@@ -133,23 +132,4 @@ laptop.
 ## Metadata
 
 **Roadmap Status:** 🟡 In Progress
-**Location:** `docs/roadmap/on-progress/fedora45-postinstall/`
-**Version:** 1.1.0
 **Created:** 2026-10-18
-**Last Updated:** 2026-11-04
-
----
-
-## Changelog
-
-### 1.1.0 (2026-11-04)
-
-GNOME and KDE Plasma both become tested targets: two test VMs, desktop-specific content in
-profiles, phase 6 renamed Desktop. The `firewall` module's job moves to a phase 7 step, the
-Legion 7's audio to Fedora's kernel 7.3 plus a phase 3 firmware step. Approved by the user.
-
-### 1.0.0 (2026-10-18)
-
-Roadmap created with 9 phases: framing and architecture, core framework, repositories and
-multimedia, NVIDIA and hardware, packages, Flatpaks, GNOME, system settings, integration and
-validation.
