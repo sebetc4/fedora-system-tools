@@ -68,8 +68,32 @@ registry_init() {
 
     # Fix ownership when writing to user registry under sudo
     if [[ "$created" == "true" && -n "${REGISTRY_PATH_OVERRIDE:-}" && -n "${SUDO_USER:-}" ]]; then
-        chown "$SUDO_USER:$SUDO_USER" "$registry_dir" "$registry_path"
+        chown "$SUDO_USER:" "$registry_dir" "$registry_path"
     fi
+}
+
+# Rewrite the registry without a module's section, with one blank line before
+# each section and none elsewhere. Under root the copy takes the file's owner,
+# since the submodule engine writes the user registry under sudo.
+# Args: module_name registry_path
+_registry_drop_section() {
+    local module="$1"
+    local registry_path="$2"
+    local tmp
+    tmp=$(mktemp "${registry_path}.XXXXXX")
+
+    awk -v mod="[$module]" '
+        /^\[/ { skip = ($0 == mod) }
+        skip || /^[[:space:]]*$/ { next }
+        /^\[/ && printed { print "" }
+        { print; printed = 1 }
+    ' "$registry_path" > "$tmp"
+
+    chmod --reference="$registry_path" "$tmp"
+    if [[ $EUID -eq 0 ]]; then
+        chown --reference="$registry_path" "$tmp"
+    fi
+    mv "$tmp" "$registry_path"
 }
 
 # =============================================================================
@@ -90,8 +114,8 @@ registry_set() {
     local timestamp
     timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
 
-    # Remove existing entry if present
-    registry_remove "$module" 2>/dev/null || true
+    # Drop the existing entry, keeping the file even when it was the only one
+    _registry_drop_section "$module" "$registry_path"
 
     # Append new entry
     {
@@ -102,7 +126,8 @@ registry_set() {
     } >> "$registry_path"
 }
 
-# Remove a module entry from the registry
+# Remove a module entry from the registry. Once no entry is left, the file
+# goes, and its folder too when nothing else lives there.
 # Args: module_name
 registry_remove() {
     local module="$1"
@@ -111,14 +136,12 @@ registry_remove() {
 
     [[ ! -f "$registry_path" ]] && return 0
 
-    # Use awk to remove the section (header + key=value lines until next section or EOF)
-    awk -v mod="[$module]" '
-        BEGIN { skip = 0 }
-        /^\[/ { skip = ($0 == mod) ? 1 : 0 }
-        !skip { print }
-    ' "$registry_path" > "${registry_path}.tmp"
+    _registry_drop_section "$module" "$registry_path"
 
-    mv "${registry_path}.tmp" "$registry_path"
+    if ! grep -q '^\[' "$registry_path"; then
+        rm -f "$registry_path"
+        rmdir --ignore-fail-on-non-empty "$(dirname "$registry_path")"
+    fi
 }
 
 # =============================================================================

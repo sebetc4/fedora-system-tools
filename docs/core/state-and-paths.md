@@ -13,7 +13,9 @@ Tracks installed modules and submodules in INI-style files.
 | System | `/etc/system-scripts/registry` | root |
 | User | `~/.config/system-scripts/registry` | user |
 
-Selection: system if `EUID=0`, user otherwise.
+Selection: system if `EUID=0`, user otherwise; `REGISTRY_PATH_OVERRIDE` forces the user
+registry for user-type submodules installed under `sudo`, which keeps it the user's. A registry
+whose last entry is removed is deleted, with its folder when nothing else lives there.
 
 ### Format
 
@@ -37,8 +39,6 @@ installed=2026-02-15 10:30:46
 | `registry_remove` | `(module)` | — |
 | `registry_get_version` | `(module)` | version string or exit 1 |
 | `registry_is_installed` | `(module)` | 0/1 |
-| `registry_list` | `()` | module names |
-| `registry_get_date` | `(module)` | timestamp string |
 
 **Submodule-level:**
 

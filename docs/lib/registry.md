@@ -50,6 +50,8 @@ Override with `REGISTRY_PATH_OVERRIDE` env var (used by submodule engine for use
 #### `registry_init`
 
 Ensure registry file exists. Creates the file with a header comment if absent. Called automatically by `registry_set`.
+Under `sudo` with `REGISTRY_PATH_OVERRIDE`, the folder and file it creates belong to `SUDO_USER`.
+Every later rewrite keeps the file's owner and mode, so the user registry stays the user's.
 
 ---
 
@@ -57,7 +59,8 @@ Ensure registry file exists. Creates the file with a header comment if absent. C
 
 #### `registry_set module version`
 
-Register or update a module. Creates a timestamped entry.
+Register or update a module. Creates a timestamped entry, replacing the existing one; the file
+keeps one blank line before each section and none elsewhere.
 
 ```bash
 registry_set "clamav" "0.1.0"
@@ -65,7 +68,8 @@ registry_set "clamav" "0.1.0"
 
 #### `registry_remove module`
 
-Remove a module entry from the registry.
+Remove a module entry from the registry. Once no entry is left, the file is removed, and its
+folder too when nothing else lives there.
 
 ```bash
 registry_remove "clamav"

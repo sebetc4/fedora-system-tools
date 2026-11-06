@@ -7,6 +7,42 @@
 
 ## Work Log
 
+### 2026-11-06
+
+Phase opened on the user's word, ahead of roadmap `fedora45-postinstall`, Phase 1: `postinstall/`
+sources the repository's `lib/` from the checkout, so its runner should build on a library this
+phase has already reviewed and tested.
+
+Registry defects first. Six `bats` tests of the registry's layout, written in a registry under
+the test's temporary folder through `REGISTRY_PATH_OVERRIDE`, and five of them failed on the
+code as it stood: rewriting the last entry added a blank line each time (three after two
+rewrites), rewriting the only entry left two blank lines under the header, and removing the
+last entry, through `registry_remove` or `registry_remove_submodule`, left the file. The cause
+of the blank lines: the section removal kept the blank line before a section, which belongs
+to the previous one in the file's reading, and `registry_set` added its own. `lib/registry.sh`
+now rewrites the file through `_registry_drop_section`, which drops blank lines and writes one
+before each section; `registry_remove` deletes the file once no section is left and its folder
+with `rmdir --ignore-fail-on-non-empty`, which keeps `/etc/system-scripts` and a user folder
+holding `color.conf` or `bookmarks.conf`. `registry_set` calls the section removal directly, so
+rewriting the only entry never deletes the file it is about to append to. All twelve tests
+pass. On both VMs, `tests/vm/run.sh notifications` now finds 3 leftovers instead of 5: the
+user registry and its folder are gone, and the 3 left are the empty `~/.config/systemd/user`
+and `~/.local/log` that Phase 2 owns.
+
+The review of `registry.sh` also showed a defect no task named: the rewrite went through a
+fixed `registry.tmp` moved over the file, so under `sudo` the user registry of a `type: user`
+submodule became root's after its first write. A probe in a `fedora:45` container running as
+root, two `registry_set_submodule` calls under `SUDO_USER` with `REGISTRY_PATH_OVERRIDE`, gives
+`root:root` with the old code and `u:u` with the new one: the temporary file now comes from
+`mktemp` beside the registry and takes the file's mode, and under root its owner. This machine's
+own `~/.config/system-scripts/registry` is `root:root` since 2026-03-15, from the `backup/vps`
+install; the next write as the user (a `notifications` install) replaces it with a file of
+the user's, and `sudo chown "$USER:" ~/.config/system-scripts/registry` does it at once.
+`registry_init` now gives created files to `SUDO_USER:`, the user's login group, instead of a
+group named after the user. Lib bumped to 0.5.1, a patch. `docs/lib/registry.md` and
+`docs/core/state-and-paths.md` say how the file is kept, and the latter no longer lists
+`registry_list` and `registry_get_date`, which do not exist.
+
 ---
 
 ## Decisions
