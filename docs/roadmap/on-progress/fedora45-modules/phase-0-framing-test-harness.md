@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (63% — 5/8)
+**Current Status:** 🟡 In Progress (75% — 6/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -26,7 +26,7 @@ Reviewing any module (phases 1 to 6).
 ### Review Standard
 - [ ] Write the module review checklist in `docs/core/module-review.md`: correctness, optimization, tests, security (root boundaries, quoting, temporary files, secrets, systemd hardening), personalization, documentation and VM validation, each with what passing means
   Proof: medium, the user's review of the checklist
-- [ ] Add to `docs/core/conventions.md` the rules the repository review showed missing, starting with counters under `set -e` (`((n++))` from 0 aborts the script)
+- [x] Add to `docs/core/conventions.md` the rules the repository review showed missing, starting with counters under `set -e` (`((n++))` from 0 aborts the script)
   Proof: low, the rule read beside its reproduction command
 - [x] Decide with the user where personal settings live (module config files, the ignored `my-config/`, the postinstall `personal` profile) and what the public repository must never hold
   Proof: medium, the user's decision recorded in the report

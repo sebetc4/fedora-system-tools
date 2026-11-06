@@ -63,6 +63,22 @@ path as the personal settings decision first said: the decision and Phase 1's se
 follow it. It still holds `modules/backup/system/`, the name `local` had before 0.6.0, which
 Phase 4 meets when it reviews `local`.
 
+`docs/core/conventions.md` gains the rules the repository review showed missing: arithmetic
+under `set -e`, increments written `n=$((n + 1))` and `(( ))` kept for conditions; the user's
+home from `getent passwd`, never `eval echo ~user`; installers without heredocs, packages from
+Fedora's repositories, no key import followed by `|| true`, no installed config overwritten; and
+the personal settings rule, with its decision entry. Proof: beside the rule,
+`bash -c 'set -e; n=0; ((n++)); echo reached'` prints nothing and exits 1, the same with
+`n=$((n + 1))` prints `reached`, and `((n += 1))` from `-1` exits 1 as well. The rule turns many
+existing counters into rewrites: outside `for ((…))` headers, `git grep` finds 91 `++`, `--`,
+`+=` or `-=` arithmetic statements in 18 scripts, which each module's review converts.
+
+The review checklist is written in `docs/core/module-review.md`: correctness, optimization,
+tests, security (root boundaries, quoting and input, temporary files, secrets, external sources,
+systemd hardening), personalization, documentation and VM validation, each item with what
+passing means. Its last item commits the VM harness to a comparison of the VM before and after
+the uninstall. It waits on the user's review.
+
 ---
 
 ## Decisions

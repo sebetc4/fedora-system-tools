@@ -1,6 +1,9 @@
 # Conventions
 
-Coding and visual conventions used throughout the project.
+Coding and visual conventions used throughout the project, and where personal settings live.
+Versions follow [Versioning](versioning.md), installed files are listed in
+[State, Configuration & Installed Paths](state-and-paths.md), and a module is reviewed against
+[Module Review](module-review.md).
 
 ## Strict mode
 
@@ -27,6 +30,21 @@ failures:
 - `bookmark-manager.sh` — interactive menu handles errors explicitly
 
 The omission must be documented with a comment in the script header.
+
+### Arithmetic under `set -e`
+
+An arithmetic command, `(( ))`, returns status 1 whenever its expression evaluates to 0, and
+`set -e` then ends the script without a message. `((n++))` evaluates to the old value, so a
+counter starting at 0 stops the script the first time it is incremented:
+
+```bash
+bash -c 'set -e; n=0; ((n++)); echo reached'      # prints nothing, exits 1
+bash -c 'set -e; n=0; n=$((n + 1)); echo reached' # prints "reached"
+```
+
+Increment with an assignment, `n=$((n + 1))`, never with `((n++))`, `((++n))` or
+`((n += 1))` as a statement: the last two fail too as soon as the result is 0. `(( ))` stays
+for conditions, in `if (( n > 0 ))` or `while (( i < max ))`, where its status is the point.
 
 ## Color variables — `C_*`
 
@@ -137,3 +155,56 @@ See [docs/lib/color.md](../lib/color.md) for full API documentation.
 Scripts triggered by systemd or running independently (e.g., `backup-vps.sh`,
 scan daemons) **do not source the shared lib**. They define their own colors
 and logging inline to avoid the `lib/` dependency at runtime.
+
+## Real user and home
+
+A script running under `sudo` acts for the user who called it: `detect_real_user` from
+`lib/fs.sh` sets `REAL_USER` and `REAL_HOME` from `SUDO_USER`. A user's home comes from the
+password database, never from tilde expansion through `eval`, which runs whatever the name
+holds:
+
+```bash
+home=$(getent passwd "$user" | cut -d: -f6)   # never: eval echo "~$user"
+```
+
+## Installers
+
+- No heredocs: a static file (logrotate config, systemd unit) is stored in the module and
+  installed with `install -m 644`; a dynamic one is a template with `__PLACEHOLDER__` values
+  filled by `sed`.
+- Packages come from Fedora's repositories. A third-party repository or download is used only
+  when Fedora does not ship the software, with its key or checksum verified: a key import is
+  never followed by `|| true`.
+- An install or upgrade never overwrites a config file the user may have edited.
+
+## Personal settings
+
+The repository is public and holds generic defaults only, such as the `my-vps` placeholder of
+`backup/vps`. The user's own values live in the config files a module installs on the machine
+(`~/.config/…`, `/etc/…`), which an install or upgrade never overwrites. Copies of those files
+are kept in `my-config/` at the checkout's root, ignored by git, laid out like the repository's
+tree: `my-config/modules/backup/vps/config.yml` is the user's copy of
+`modules/backup/vps/config.yml`, kept to restore it after a reinstall. The postinstall
+`personal` profile holds only choices fit to publish: packages, Flatpaks, desktop settings.
+
+No tracked file holds:
+
+- a secret: password, token, API key, private key, VPN credentials;
+- the name or address of one of the user's hosts;
+- an account name or an email address;
+- a path or a value of the user's own, where a generic default can stand.
+
+## Decisions
+
+### 2026-11-06 — Personal settings live on the machine, never in the repository
+
+Decided with the user while framing the review of the modules for Fedora 45; it shapes
+Personal settings above, and every module's defaults are checked against its list.
+
+- Set aside: the installed config files alone, with no copy, since a reinstall would lose
+  them.
+- Set aside: the postinstall `personal` profile, since it is tracked and the repository is
+  public.
+- Facts: `my-config/` already held the user's copies of the backup configs, laid out like the
+  repository's tree, and `.gitignore` already excluded it.
+- Revisit: if the repository stops being public.
