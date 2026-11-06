@@ -31,7 +31,7 @@ TOTAL                                  ████░░░░░░░░░�
 ```
 
 **Current Phase:** —
-**Blocked By:** —
+**Blocked By:** roadmap `review-skill`
 
 ---
 
@@ -112,6 +112,8 @@ laptop.
 
 ## Dependencies
 
+- Roadmap `review-skill`, before Phase 1: every phase that changes code ends with the review
+  of its diff, which that roadmap builds.
 - Fedora 45 final release images for the test VMs (phase 0 onward): Workstation and KDE Plasma
   Desktop, in `/vm/iso`.
 - Fedora 45 general availability, reached on 2026-11-03, for the real-machine run (phase 8).

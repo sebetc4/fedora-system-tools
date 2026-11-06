@@ -7,7 +7,7 @@
 **Current Status:** 🔴 Not Started (0% — 0/6)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
-**Blocked By:** —
+**Blocked By:** roadmap `review-skill`
 
 ---
 

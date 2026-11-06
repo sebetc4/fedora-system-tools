@@ -29,7 +29,7 @@ TOTAL                                  ██████░░░░░░░�
 ```
 
 **Current Phase:** —
-**Blocked By:** —
+**Blocked By:** roadmap `review-skill`
 
 ---
 
@@ -91,6 +91,9 @@ VMs, on Fedora 45.
 
 ## Dependencies
 
+- Roadmap `review-skill`, before Phase 2: every phase that changes code ends with the review
+  of its diff, which that roadmap builds; its first real use reviews this roadmap's Phases 0
+  and 1.
 - The two Fedora 45 test VMs (roadmap `fedora45-postinstall`, Phase 0), ready on 2026-11-06, for
   this roadmap's Phase 0 onward.
 - A Fedora kernel 7.3 or later, expected within weeks, for Phase 6's validation on the Legion 7.
