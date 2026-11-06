@@ -160,3 +160,21 @@ notifications` exits 1.
 ---
 
 ## Assessment
+
+Phase 0 set the standard and built the tools that prove it. The review checklist,
+`docs/core/module-review.md`, approved by the user, applies to every module from Phase 1 on;
+`docs/core/conventions.md` gained the rules the repository review showed missing and the personal
+settings rule; `make shellcheck` lints every tracked script, `make test` runs the first `bats`
+tests, CI runs both in a Fedora 45 container, and both are the repository's declared `checks`.
+The VM harness, `tests/vm/run.sh`, runs a module's install cycle on the GNOME and KDE VMs from
+`clean-install` and compares each VM before and after. Not planned, the documentation was migrated
+to the `[docs]` convention before the checklist could be written. The harness's first real run
+already found defects: the registry's blank lines and its user file left once empty, and the
+empty folders `notifications` leaves, now tasks of Phases 1 and 2.
+
+Phase 1 needs first the checklist, which it applies to `lib/`, `setup.sh` and the installers,
+and the harness behind its proofs, which still installs `make`, `yq` and `gum` from
+`tests/vm/prereqs.list`: its bootstrap task removes `yq` and `gum` from that list, and its proof
+is a harness run without them. It also owns the registry task it gained, `setup.sh`'s copy of
+`version_compare`, the seeding of config files from `my-config/`, and its share of the arithmetic
+statements to convert, in `lib/ui.sh`, `lib/submodule.sh` and `setup.sh`.
