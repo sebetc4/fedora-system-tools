@@ -36,7 +36,7 @@ The modules themselves (phases 2 to 6).
   Proof: medium, a run on a fresh VM snapshot holding neither `yq` nor `gum`
 - [ ] Review `setup.sh`, `install.sh` and `uninstall.sh` against the checklist, splitting `setup.sh` (2188 lines) if the review calls for it
   Proof: medium, use — install, list, upgrade, reinstall and uninstall of one module on both VMs
-- [ ] Seed each config file a submodule installs from `my-config/`, laid out by installed path, when a copy is kept there, from the module's default otherwise, and never overwrite an installed config file
+- [ ] Seed each config file a submodule installs from `my-config/`, laid out like the repository's tree (`my-config/modules/backup/vps/config.yml` for `modules/backup/vps/config.yml`), when a copy is kept there, from the module's default otherwise, and never overwrite an installed config file
   Proof: medium, test — a VM install with a copy in `my-config/` installs the copy, and a second install leaves an edited config untouched
 
 ### Release

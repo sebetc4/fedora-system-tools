@@ -387,7 +387,3 @@ Removes binaries, services, logrotate configs. **Preserves:**
 - User configs in `~/.config/backup/`
 - Hook configs in `~/.config/backup/hooks/`
 - Downloaded data and backups
-
----
-
-*Last Updated: March 9, 2026*

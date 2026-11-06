@@ -241,7 +241,7 @@ bitwarden:
   retention: 3
 ```
 
-> See [bitwarden/README.md](../bitwarden/README.md) for setup and standalone usage.
+> See [Bitwarden Vault Backup](bitwarden.md) for setup and standalone usage.
 
 ---
 
@@ -443,7 +443,3 @@ Always test with `--dry-run` after config changes:
 ```bash
 sudo backup-local --dry-run --yes
 ```
-
----
-
-**Version**: 0.1.0

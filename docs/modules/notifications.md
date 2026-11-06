@@ -395,7 +395,3 @@ Check or reset daemon state (last processed timestamp):
 cat ~/.config/notify-daemon/state                         # View last processed timestamp
 rm ~/.config/notify-daemon/state                          # Reset — daemon will process all new entries
 ```
-
----
-
-*Last Updated: March 2, 2026*

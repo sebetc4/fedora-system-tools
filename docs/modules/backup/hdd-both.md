@@ -420,9 +420,6 @@ hdd-to-both-hdd/
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: January 8, 2026
-
 **Related:**
-- Simple HDD mirror: `../hdd-to-hdd/README.md`
-- System backup: `../system/README.md`
+- Simple HDD mirror: [BTRFS HDD Backup Script - Simple HDD Mirror](hdd.md)
+- System backup: [Local Backup with Hook System](local.md)

@@ -160,7 +160,7 @@ for submodules, dependencies, versions, and systemd units. The shared library
 **Standalone modules** (firewall, nautilus, notifications) skip the submodule engine
 and install directly.
 
-Detailed documentation: [`docs/`](docs/)
+Detailed documentation: [`docs/`](docs/README.md)
 
 | Topic | Link |
 |-------|------|

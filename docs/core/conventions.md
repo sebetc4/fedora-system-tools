@@ -137,7 +137,3 @@ See [docs/lib/color.md](../lib/color.md) for full API documentation.
 Scripts triggered by systemd or running independently (e.g., `backup-vps.sh`,
 scan daemons) **do not source the shared lib**. They define their own colors
 and logging inline to avoid the `lib/` dependency at runtime.
-
----
-
-*Last Updated: March 9, 2026*

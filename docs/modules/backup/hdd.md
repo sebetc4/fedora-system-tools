@@ -210,8 +210,3 @@ sudo dnf install compsize
 - Les deux disques doivent être montés avant de lancer le script
 - Le backup est un **miroir** : les fichiers supprimés de la source seront supprimés du backup
 - Utilise `--no-delete` si tu veux garder les fichiers supprimés sur le backup
-
----
-
-**Version**: 0.1.0  
-**Last Updated**: January 8, 2026

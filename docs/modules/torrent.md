@@ -174,7 +174,3 @@ TORRENT_DEBUG=1 torrent <command>
 - `curl` — VPN info queries
 - `skopeo` — Image update detection (optional)
 - `gum` — Interactive UI (optional, bash fallback)
-
----
-
-*Last Updated: March 9, 2026*

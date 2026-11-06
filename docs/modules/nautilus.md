@@ -136,7 +136,3 @@ Environment variable overrides:
 
 Uses `set -uo pipefail` (omits `-e`). As an interactive tool, errors are handled
 explicitly per-command rather than aborting on any failure.
-
----
-
-*Last Updated: March 9, 2026*

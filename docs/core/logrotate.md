@@ -174,7 +174,3 @@ ls /etc/logrotate.d/*-notifications /etc/logrotate.d/*-backup-vps \
    /etc/logrotate.d/clamav-scripts \
    /etc/logrotate.d/backup-scripts 2>/dev/null
 ```
-
----
-
-*Last Updated: February 27, 2026*

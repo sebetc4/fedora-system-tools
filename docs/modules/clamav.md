@@ -88,7 +88,3 @@ Rotation is handled by a single logrotate config (`logrotate/clamav-scripts`) ma
 | `/etc/system-scripts/paths.conf` | Shell vars | Download directories (used by daily-clamscan, download-clamscan) |
 
 Profile management: `sudo clamav-manage configure`
-
----
-
-*Last Updated: March 1, 2026*

@@ -224,8 +224,3 @@ The JSON+age export (if enabled) is not affected.
 
 The path in `api_key_path` does not exist. Check that the backup drive is mounted
 and the path is correct.
-
----
-
-*Version: 0.1.0*
-*Last Updated: March 15, 2026*
