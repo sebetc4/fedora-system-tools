@@ -39,35 +39,34 @@ type: system  # system (root) or user (no root)
 #   script-name:
 #     version: 0.1.0
 #     description: "What this script does"
-#     source: scripts/script.sh          # Single script
+#     # type: user                       # Overrides the module's type (optional)
+#     source: scripts/script.sh          # Script to install
 #     bin_name: command-name             # Installed command name
 #     deps: []                           # Intra-module submodule deps (optional)
 #     #   - core                         # Auto-installed before this submodule
-#     # --- or multi-script submodule ---
-#     # source:
-#     #   - scripts/main.sh:main-cmd
-#     #   - scripts/helper.sh:helper-cmd
-#     services: []                       # systemd service files (optional)
+#     services: []                       # systemd service files, .tpl rendered (optional)
 #     timers: []                         # systemd timer files (optional)
-#     configs: []                        # Config files to install (optional)
+#     configs: []                        # Config files to install, never removed (optional)
 #     #   - source: config.yml
 #     #     dest: ~/.config/app/config.yml
-#     #     no_overwrite: true
-#     required_commands: []              # Commands that must be pre-installed (optional)
+#     #     no_overwrite: true           # An existing file is left as it is
+#     required_commands: []              # Commands not from dnf: a warning when missing (optional)
 #     #   - bw                           # Simple form (name only)
 #     #   - name: bw                     # Object form (with install hint)
 #     #     install_hint: "npm install -g @bitwarden/cli"
-#     system_deps: []                    # dnf packages to auto-install (optional)
+#     system_deps: []                    # dnf packages, installed when missing (optional)
 #     notifications: []                  # notify-daemon tags (optional)
-#     #   - tag: notify-service-name    # Use notify- prefix to avoid systemd tag collision
-#     #     icon: icon-name    #     level: all                  # Default notification level: all | important | none
-    #                                 # Written to levels.conf only if not already set
-    #                                 # (preserves user customizations via notify-manage level)#     deps: []                           # Intra-module submodule deps (optional)
-#     #   - core                         # Auto-installed before this submodule
-#     dirs: []                           # Directories to create (optional)
-#     #   - path: /var/data
+#     #   - tag: notify-service-name     # Use notify- prefix to avoid systemd tag collision
+#     #     icon: icon-name
+#     #     level: all                   # all | important | none, written to levels.conf
+#     #                                  # only if not already set
+#     dirs: []                           # Directories to create, removed with their content (optional)
+#     #   - path: /var/data              # ~/ for the user's home
 #     #     mode: "700"
-#     logrotate: logrotate/name          # Logrotate config to install (optional)
-#     hooks:                             # Custom hooks (optional)
+#     logrotate: logrotate/name          # Logrotate config (optional); a name.tpl
+#                                        # installs as /etc/logrotate.d/<user>-name
+#     hook_scripts: hooks.d              # <event>/<name>.sh installed to
+#                                        # /usr/local/lib/system-scripts/hooks.d/<event>/ (optional)
+#     hooks:                             # Custom hooks, run as root (optional)
 #       install: scripts/custom-install.sh
 #       uninstall: scripts/custom-cleanup.sh

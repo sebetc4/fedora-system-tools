@@ -6,6 +6,11 @@
 # in module.yml. Each module's install.sh becomes a thin orchestrator that
 # calls these functions.
 #
+# An uninstall removes what module.yml declares and nothing else: binaries,
+# units, logrotate configs, declared directories, the hook scripts the module
+# ships, and the folders of the user's home they needed once those are empty.
+# Config files stay.
+#
 # Requires: yq (for parsing module.yml), core.sh, registry.sh, notify.sh
 # Usage: source "$LIB_DIR/submodule.sh"
 #
@@ -46,7 +51,7 @@ submodule_get() {
 # Output: one name per line
 submodule_list() {
     local yml="${1:-module.yml}"
-    yq -r '.submodules | keys | .[]' "$yml" 2>/dev/null
+    yq -r '.submodules // {} | keys | .[]' "$yml"
 }
 
 # Get a submodule array field as newline-separated values
@@ -55,48 +60,109 @@ submodule_get_array() {
     local submodule="$1"
     local field="$2"
     local yml="${3:-module.yml}"
-    yq -r ".submodules.\"$submodule\".$field // [] | .[]" "$yml" 2>/dev/null
+    yq -r ".submodules.\"$submodule\".$field // [] | .[]" "$yml"
 }
 
 # =============================================================================
-# USER-TYPE SUBMODULE SUPPORT
+# USER CONTEXT
 # =============================================================================
-# Submodules can declare `type: user` in module.yml to override the module's
-# default type. User-type submodules install to user paths (~/.local/bin,
-# ~/.config/systemd/user/) and use user systemd + user registry.
+# The engine runs as root under sudo and acts for SUDO_USER. Submodules can
+# declare `type: user` in module.yml to override the module's default type:
+# they install to user paths (~/.local/bin, ~/.config/systemd/user/), use
+# systemctl --user and the user registry. Whatever the type, a file written
+# in the user's home is written by the user, its missing parents included.
 #
-# Context variables (set by _submodule_resolve_context):
+# Context variables (set by _submodule_resolve_context, local to the
+# submodule_install or submodule_uninstall call that resolved them):
 #   _sub_type    — "system" or "user"
 #   _real_user   — target user (SUDO_USER or USER)
 #   _real_home   — target user's home directory
 #   _real_uid    — target user's UID
 
-# Resolve type and user context for a submodule
+# Print a submodule's type: its own, or the module's, "system" by default
+# Args: submodule_name module_yml
+_submodule_type() {
+    local type
+    type=$(submodule_get "$1" "type" "$2")
+    [[ -n "$type" ]] || type=$(module_get "type" "$2")
+    echo "${type:-system}"
+}
+
+# Print the home of the user an install acts for: SUDO_USER under sudo,
+# the caller otherwise
+_submodule_user_home() {
+    local user="${SUDO_USER:-$USER}" home
+    home=$(getent passwd "$user" | cut -d: -f6) || true
+    if [[ -z "$home" ]]; then
+        _sub_error "No home found for user '$user'"
+        return 1
+    fi
+    echo "$home"
+}
+
+# Resolve type and user context for a submodule. The caller declares the
+# context variables local first, so a dependency installed meanwhile keeps
+# its own context and leaves the caller's untouched.
 # Args: submodule_name module_yml
 # Sets: _sub_type, _real_user, _real_home, _real_uid
 _submodule_resolve_context() {
-    local submodule="$1"
-    local module_yml="$2"
-    _sub_type=$(submodule_get "$submodule" "type" "$module_yml")
-    [[ -z "$_sub_type" ]] && _sub_type=$(module_get "type" "$module_yml")
+    _sub_type=$(_submodule_type "$1" "$2")
     _real_user="${SUDO_USER:-$USER}"
-    _real_home=$(getent passwd "$_real_user" | cut -d: -f6)
+    _real_home=$(_submodule_user_home) || return 1
     _real_uid=$(id -u "$_real_user")
 }
 
+# Run a command as the user: through runuser when root acts for another
+# user, directly otherwise
+# Uses _real_user
+_as_user() {
+    if [[ $EUID -eq 0 && "$_real_user" != "root" ]]; then
+        runuser -u "$_real_user" -- "$@"
+    else
+        "$@"
+    fi
+}
+
+# Run a command as the user when <path> lies in the user's home, as the
+# caller otherwise
+# Args: path command...
+# Uses _real_home, _real_user
+_submodule_owner_run() {
+    local path="$1"
+    shift
+    if [[ "$path" == "$_real_home"/* ]]; then
+        _as_user "$@"
+    else
+        "$@"
+    fi
+}
+
+# Write stdin to a file with a mode, as its owner per _submodule_owner_run
+# Args: dest mode
+_submodule_write() {
+    local dest="$1" mode="$2"
+    _submodule_owner_run "$dest" tee "$dest" > /dev/null
+    _submodule_owner_run "$dest" chmod "$mode" "$dest"
+}
+
+# Print a template with __HOME__ and __USER__ replaced by the user's
+# Args: template_path
+_submodule_render() {
+    sed -e "s|__HOME__|$_real_home|g" -e "s|__USER__|$_real_user|g" "$1"
+}
+
 # Run systemctl with user/system context
-# Uses _sub_type, _real_user, _real_uid from _submodule_resolve_context
+# Uses _sub_type, _real_user, _real_uid
 _systemctl_cmd() {
     if [[ "${_sub_type:-system}" == "user" ]]; then
-        sudo -u "$_real_user" XDG_RUNTIME_DIR="/run/user/$_real_uid" \
-            systemctl --user "$@"
+        _as_user env XDG_RUNTIME_DIR="/run/user/$_real_uid" systemctl --user "$@"
     else
         systemctl "$@"
     fi
 }
 
 # Get bin_path based on submodule type
-# Uses _sub_type, _real_home from _submodule_resolve_context
+# Uses _sub_type, _real_home
 _submodule_bin_path() {
     if [[ "${_sub_type:-system}" == "user" ]]; then
         echo "$_real_home/.local/bin"
@@ -106,7 +172,7 @@ _submodule_bin_path() {
 }
 
 # Get systemd unit directory based on submodule type
-# Uses _sub_type, _real_home from _submodule_resolve_context
+# Uses _sub_type, _real_home
 _submodule_systemd_dir() {
     if [[ "${_sub_type:-system}" == "user" ]]; then
         echo "$_real_home/.config/systemd/user"
@@ -115,9 +181,9 @@ _submodule_systemd_dir() {
     fi
 }
 
-# Expand ~ in paths for user-type submodules
+# Expand a leading ~/ to the user's home
 # Args: path
-# Uses _real_home from _submodule_resolve_context
+# Uses _real_home
 _submodule_expand_path() {
     local path="$1"
     # shellcheck disable=SC2088  # Tilde is a literal prefix from YAML, not shell expansion
@@ -128,40 +194,135 @@ _submodule_expand_path() {
     fi
 }
 
+# Print the destination of a submodule's logrotate config: its file name, and
+# for a template, the user's name before it (bitwarden/logrotate/
+# backup-bitwarden.tpl gives /etc/logrotate.d/<user>-backup-bitwarden)
+# Args: logrotate_path
+# Uses _real_user
+_submodule_logrotate_dest() {
+    local name
+    name=$(basename "$1")
+    if [[ "$name" == *.tpl ]]; then
+        echo "/etc/logrotate.d/${_real_user}-${name%.tpl}"
+    else
+        echo "/etc/logrotate.d/$name"
+    fi
+}
+
+# Print the unit names a submodule installs: its timers, then its services,
+# templates under their rendered name
+# Args: submodule_name module_yml
+_submodule_units() {
+    local unit
+    while IFS= read -r unit; do
+        [[ -n "$unit" ]] || continue
+        unit=$(basename "$unit")
+        echo "${unit%.tpl}"
+    done < <(submodule_get_array "$1" "timers" "$2"; submodule_get_array "$1" "services" "$2")
+}
+
+# =============================================================================
+# REGISTRY ACCESS
+# =============================================================================
+
+# Run a registry function against the registry of a submodule's type: the
+# user's for type user, the default one otherwise
+# Args: submodule_name module_yml registry_function args...
+_submodule_registry() {
+    local submodule="$1" module_yml="$2" home
+    shift 2
+    if [[ "$(_submodule_type "$submodule" "$module_yml")" == "user" ]]; then
+        home=$(_submodule_user_home) || return 1
+        REGISTRY_PATH_OVERRIDE="$home/.config/system-scripts/registry" "$@"
+    else
+        "$@"
+    fi
+}
+
 # Check if a submodule is installed, using the correct registry for its type
 # Args: module_name submodule_name module_yml
 _is_sub_installed() {
-    local module_name="$1" submodule="$2" module_yml="$3"
-    local sub_type
-    sub_type=$(submodule_get "$submodule" "type" "$module_yml")
-    [[ -z "$sub_type" ]] && sub_type=$(module_get "type" "$module_yml")
-    if [[ "$sub_type" == "user" ]]; then
-        local real_user="${SUDO_USER:-$USER}"
-        local real_home
-        real_home=$(getent passwd "$real_user" | cut -d: -f6)
-        REGISTRY_PATH_OVERRIDE="$real_home/.config/system-scripts/registry" \
-            registry_is_submodule_installed "$module_name" "$submodule"
-    else
-        registry_is_submodule_installed "$module_name" "$submodule"
-    fi
+    _submodule_registry "$2" "$3" registry_is_submodule_installed "$1" "$2"
 }
 
 # Get submodule version from the correct registry for its type
 # Args: module_name submodule_name module_yml
 _get_sub_version() {
-    local module_name="$1" submodule="$2" module_yml="$3"
-    local sub_type
-    sub_type=$(submodule_get "$submodule" "type" "$module_yml")
-    [[ -z "$sub_type" ]] && sub_type=$(module_get "type" "$module_yml")
-    if [[ "$sub_type" == "user" ]]; then
-        local real_user="${SUDO_USER:-$USER}"
-        local real_home
-        real_home=$(getent passwd "$real_user" | cut -d: -f6)
-        REGISTRY_PATH_OVERRIDE="$real_home/.config/system-scripts/registry" \
-            registry_get_submodule_version "$module_name" "$submodule"
-    else
-        registry_get_submodule_version "$module_name" "$submodule"
+    _submodule_registry "$2" "$3" registry_get_submodule_version "$1" "$2"
+}
+
+# Print the installed submodules that depend on a submodule
+# Args: module_name submodule_name module_yml
+_submodule_dependents() {
+    local module_name="$1" submodule="$2" module_yml="$3" other
+    while IFS= read -r other; do
+        [[ "$other" == "$submodule" ]] && continue
+        submodule_get_array "$other" "deps" "$module_yml" | grep -qxF -- "$submodule" || continue
+        if _is_sub_installed "$module_name" "$other" "$module_yml"; then
+            echo "$other"
+        fi
+    done < <(submodule_list "$module_yml")
+}
+
+# =============================================================================
+# DEPENDENCY CHECKS
+# =============================================================================
+
+# Print the packages of a list that nothing installed provides
+# Args: package...
+_submodule_missing_packages() {
+    local pkg
+    for pkg in "$@"; do
+        [[ -n "$pkg" ]] || continue
+        rpm -q --quiet --whatprovides "$pkg" 2>/dev/null || echo "$pkg"
+    done
+}
+
+# Succeed when a command is found, in the caller's PATH or in the user's
+# login PATH, where npm, pip and cargo put theirs
+# Args: command
+# Uses _real_user
+_submodule_has_command() {
+    command -v "$1" &>/dev/null && return 0
+    [[ $EUID -eq 0 && "$_real_user" != "root" ]] || return 1
+    # shellcheck disable=SC2016  # $1 expands in the user's shell
+    _as_user bash -lc 'command -v "$1"' _ "$1" &>/dev/null
+}
+
+# =============================================================================
+# REMOVAL GUARDS
+# =============================================================================
+
+# Succeed when a declared directory may be removed with its content: an
+# absolute path with no "." or ".." component, two levels deep at least,
+# two levels below the user's home when it lies in it, and owned by no
+# package (/var/log, /etc/logrotate.d...)
+# Args: dir
+# Uses _real_home
+_submodule_removable_dir() {
+    local dir="${1%/}"
+    [[ "$dir" == /?*/?* ]] || return 1
+    [[ "$dir/" != */./* && "$dir/" != */../* && "$dir" != *//* ]] || return 1
+    if [[ "$dir" == "$_real_home" || "$dir" == "$_real_home"/* ]]; then
+        [[ "$dir" == "$_real_home"/?*/?* ]] || return 1
     fi
+    ! rpm -qf "$dir" &>/dev/null
+}
+
+# Remove a directory of the user's home, then each parent, while they are
+# empty, stopping above the home's direct children (~/.config, ~/.local).
+# A directory already gone hands over to its parent.
+# Args: dir
+# Uses _real_home
+_submodule_prune_home_dir() {
+    local dir="${1%/}"
+    [[ -n "${_real_home:-}" ]] || return 0
+    while [[ "$dir" == "$_real_home"/?*/?* ]]; do
+        if [[ -d "$dir" ]]; then
+            rmdir "$dir" 2>/dev/null || return 0
+        fi
+        dir=$(dirname "$dir")
+    done
 }
 
 # =============================================================================
@@ -214,49 +375,26 @@ submodule_sort_uninstall() {
 
 _sub_success() { echo -e "  ${C_GREEN}✓ $1${C_NC}"; }
 _sub_info()    { echo -e "  ${C_BLUE}$1${C_NC}"; }
+_sub_warn()    { echo -e "  ${C_YELLOW}Warning: $1${C_NC}" >&2; }
 _sub_error()   { echo -e "  ${C_RED}Error: $1${C_NC}" >&2; }
 
-# Show preserved config files after submodule uninstall
-# Reads configs: (no_overwrite: true) and hooks.hooks_config from module.yml
-# Args: submodule_name module_yml real_home
+# Show the config files an uninstall leaves, which it never removes
+# Args: submodule_name module_yml
 _show_preserved_configs() {
-    local submodule="$1"
-    local module_yml="$2"
-    local real_home="$3"
-    local preserved=()
-
-    # Collect configs with no_overwrite: true that still exist on disk
-    local config_count
-    config_count=$(yq -r ".submodules.\"$submodule\".configs // [] | length" "$module_yml")
-    local i
-    for (( i=0; i<config_count; i++ )); do
-        local dest no_overwrite
-        no_overwrite=$(yq -r ".submodules.\"$submodule\".configs[$i].no_overwrite // false" "$module_yml")
-        [[ "$no_overwrite" != "true" ]] && continue
-        dest=$(yq -r ".submodules.\"$submodule\".configs[$i].dest" "$module_yml")
-        dest="${dest/#\~/$real_home}"
-        [[ -f "$dest" ]] && preserved+=("$dest")
-    done
-
-    # Collect hooks_config files that still exist on disk
-    local hooks_config
-    hooks_config=$(yq -r ".submodules.\"$submodule\".hooks.hooks_config // \"\"" "$module_yml")
-    if [[ -n "$hooks_config" ]]; then
-        local config_dir="$real_home/.config/backup/hooks"
-        if [[ -d "$config_dir" ]]; then
-            for cfg in "$config_dir"/*.yml; do
-                [[ -f "$cfg" ]] && preserved+=("$cfg")
-            done
+    local submodule="$1" module_yml="$2"
+    local preserved=() dest
+    while IFS= read -r dest; do
+        [[ -n "$dest" ]] || continue
+        dest=$(_submodule_expand_path "$dest")
+        if [[ -f "$dest" ]]; then
+            preserved+=("$dest")
         fi
-    fi
+    done < <(yq -r ".submodules.\"$submodule\".configs // [] | .[].dest" "$module_yml")
 
-    # Display if any preserved configs found
-    if [[ ${#preserved[@]} -gt 0 ]]; then
+    if (( ${#preserved[@]} > 0 )); then
         echo ""
         echo -e "${C_YELLOW}Config files were NOT removed:${C_NC}"
-        for path in "${preserved[@]}"; do
-            echo "  $path"
-        done
+        printf '  %s\n' "${preserved[@]}"
         echo ""
     fi
 }
@@ -268,21 +406,16 @@ _show_preserved_configs() {
 # Install a single submodule
 # Args: module_dir submodule_name [module_yml]
 # Env: SUBMODULE_PROGRESS_CURRENT, SUBMODULE_PROGRESS_TOTAL (optional, set by caller)
+#      SUBMODULE_FORCE=true reinstalls a submodule already at its version
 submodule_install() {
     local module_dir="$1"
     local submodule="$2"
     local module_yml="${3:-$module_dir/module.yml}"
 
-    local module_name module_version version bin_path
+    local module_name module_version version
     module_name=$(module_get "name" "$module_yml")
     module_version=$(module_get "version" "$module_yml")
     version=$(submodule_get "$submodule" "version" "$module_yml")
-
-    # --- Resolve type and user context ---
-    _submodule_resolve_context "$submodule" "$module_yml"
-    bin_path=$(_submodule_bin_path)
-    local systemd_dir
-    systemd_dir=$(_submodule_systemd_dir)
 
     # --- Validate submodule exists in module.yml ---
     if [[ -z "$submodule" || -z "$version" ]]; then
@@ -300,6 +433,13 @@ submodule_install() {
         fi
     fi
 
+    # --- Resolve type and user context ---
+    local _sub_type _real_user _real_home _real_uid
+    _submodule_resolve_context "$submodule" "$module_yml" || return 1
+    local bin_path systemd_dir
+    bin_path=$(_submodule_bin_path)
+    systemd_dir=$(_submodule_systemd_dir)
+
     # --- Section header ---
     if [[ -n "${SUBMODULE_PROGRESS_CURRENT:-}" ]]; then
         echo -e "${C_BOLD}[${SUBMODULE_PROGRESS_CURRENT}/${SUBMODULE_PROGRESS_TOTAL}] Installing ${module_name}/${submodule} v${version}${C_NC}"
@@ -309,24 +449,24 @@ submodule_install() {
 
     # --- Check if already at this version ---
     if _is_sub_installed "$module_name" "$submodule" "$module_yml"; then
-        local iver
+        local iver cmp
         iver=$(_get_sub_version "$module_name" "$submodule" "$module_yml")
-        local cmp
         cmp=$(version_compare "$iver" "$version")
-        if [[ "$cmp" == "eq" ]]; then
-            if [[ "${SUBMODULE_FORCE:-}" == "true" ]]; then
+        case "$cmp" in
+            eq)
+                if [[ "${SUBMODULE_FORCE:-}" != "true" ]]; then
+                    _sub_success "$module_name/$submodule v$version already installed"
+                    return 0
+                fi
                 _sub_info "Reinstalling $module_name/$submodule v$version"
-            else
-                _sub_success "$module_name/$submodule v$version already installed"
-                return 0
-            fi
-        else
-            _sub_info "Upgrading $module_name/$submodule v$iver -> v$version"
-        fi
+                ;;
+            lt) _sub_info "Upgrading $module_name/$submodule v$iver -> v$version" ;;
+            gt) _sub_info "Downgrading $module_name/$submodule v$iver -> v$version" ;;
+        esac
     fi
 
     # --- Resolve submodule dependencies (deps:) ---
-    local deps
+    local deps dep
     mapfile -t deps < <(submodule_get_array "$submodule" "deps" "$module_yml")
     for dep in "${deps[@]}"; do
         [[ -z "$dep" ]] && continue
@@ -337,230 +477,140 @@ submodule_install() {
         fi
     done
 
-    # --- Required commands (non-dnf, must be pre-installed) ---
-    local req_count
+    # --- Required commands (not from dnf: the user installs them) ---
+    local req_count ri req_name req_hint
     req_count=$(yq -r ".submodules.\"$submodule\".required_commands // [] | length" "$module_yml")
-    if [[ "$req_count" -gt 0 ]]; then
-        local req_missing=() req_hints=()
-        local ri
-        for (( ri=0; ri<req_count; ri++ )); do
-            local req_name req_hint
-            req_name=$(yq -r ".submodules.\"$submodule\".required_commands[$ri] | (.name // .)" "$module_yml")
-            [[ -z "$req_name" ]] && continue
-            # Check as real user (not root) since user-installed commands
-            # (npm, pip, cargo, etc.) may not be in root's PATH
-            local _req_found=false
-            if command -v "$req_name" &>/dev/null; then
-                _req_found=true
-            elif [[ -n "${SUDO_USER:-}" ]]; then
-                sudo -u "$SUDO_USER" bash -lc "command -v '$req_name'" &>/dev/null && _req_found=true
-            fi
-            if [[ "$_req_found" == "false" ]]; then
-                req_missing+=("$req_name")
-                req_hint=$(yq -r ".submodules.\"$submodule\".required_commands[$ri] | (.install_hint // \"\")" "$module_yml")
-                [[ -n "$req_hint" ]] && req_hints+=("  $req_name: $req_hint")
-            fi
-        done
-        if [[ ${#req_missing[@]} -gt 0 ]]; then
-            _sub_error "Missing required command(s): ${req_missing[*]}"
-            if [[ ${#req_hints[@]} -gt 0 ]]; then
-                for hint in "${req_hints[@]}"; do
-                    echo -e "  ${C_YELLOW}${hint}${C_NC}" >&2
-                done
-            fi
+    for (( ri = 0; ri < req_count; ri++ )); do
+        req_name=$(yq -r ".submodules.\"$submodule\".required_commands[$ri] | (.name // .)" "$module_yml")
+        [[ -z "$req_name" ]] && continue
+        _submodule_has_command "$req_name" && continue
+        req_hint=$(yq -r ".submodules.\"$submodule\".required_commands[$ri] | (.install_hint // \"\")" "$module_yml")
+        _sub_warn "$req_name not found: $module_name/$submodule needs it to run${req_hint:+ ($req_hint)}"
+    done
+
+    # --- System dependencies (dnf packages) ---
+    local sys_deps missing
+    mapfile -t sys_deps < <(submodule_get_array "$submodule" "system_deps" "$module_yml")
+    mapfile -t missing < <(_submodule_missing_packages "${sys_deps[@]}")
+    if (( ${#missing[@]} > 0 )); then
+        _sub_info "Installing packages: ${missing[*]}"
+        if ! dnf install -y "${missing[@]}"; then
+            _sub_error "Could not install the packages $module_name/$submodule needs: ${missing[*]}"
             return 1
         fi
     fi
 
-    # --- System dependencies (dnf packages) ---
-    local sys_deps
-    mapfile -t sys_deps < <(submodule_get_array "$submodule" "system_deps" "$module_yml")
-    if [[ ${#sys_deps[@]} -gt 0 ]]; then
-        local missing=()
-        for dep in "${sys_deps[@]}"; do
-            [[ -z "$dep" ]] && continue
-            command -v "$dep" &>/dev/null || missing+=("$dep")
-        done
-        if [[ ${#missing[@]} -gt 0 ]]; then
-            echo -e "${C_YELLOW}Missing system packages: ${missing[*]}${C_NC}"
-            local confirm_deps
-            read -r -p "Install these packages? [y/N] " confirm_deps
-            if [[ "${confirm_deps,,}" == "y" ]]; then
-                dnf install -y "${missing[@]}"
-            else
-                warn "Skipping package installation — submodule may not work correctly"
-            fi
-        fi
-    fi
-
-    # --- Install binary/binaries ---
-    local source_field
+    # --- Install binary ---
+    local source_field bin_name
     source_field=$(submodule_get "$submodule" "source" "$module_yml")
-
-    # Ensure bin_path exists (especially for user type: ~/.local/bin)
-    if [[ "$_sub_type" == "user" ]]; then
-        mkdir -p "$bin_path"
-        chown "$_real_user:$_real_user" "$bin_path"
-    fi
-
-    if [[ -n "$source_field" ]]; then
-        # Single source file
-        local bin_name
-        bin_name=$(submodule_get "$submodule" "bin_name" "$module_yml")
-        if [[ -n "$bin_name" ]]; then
-            install -m 755 "$module_dir/$source_field" "$bin_path/$bin_name"
-            [[ "$_sub_type" == "user" ]] && chown "$_real_user:$_real_user" "$bin_path/$bin_name"
-        fi
-    else
-        # Multi-source submodule (array of source:bin_name pairs)
-        local sources
-        mapfile -t sources < <(submodule_get_array "$submodule" "source" "$module_yml")
-        for entry in "${sources[@]}"; do
-            [[ -z "$entry" ]] && continue
-            local src bin
-            src="${entry%%:*}"
-            bin="${entry##*:}"
-            install -m 755 "$module_dir/$src" "$bin_path/$bin"
-            [[ "$_sub_type" == "user" ]] && chown "$_real_user:$_real_user" "$bin_path/$bin"
-        done
+    bin_name=$(submodule_get "$submodule" "bin_name" "$module_yml")
+    if [[ -n "$source_field" && -n "$bin_name" ]]; then
+        _submodule_owner_run "$bin_path" mkdir -p "$bin_path"
+        _submodule_owner_run "$bin_path" install -m 755 "$module_dir/$source_field" "$bin_path/$bin_name"
     fi
 
     # --- Run install hook ---
     local install_hook
-    install_hook=$(yq -r ".submodules.\"$submodule\".hooks.install // \"\"" "$module_yml")
-    if [[ -n "$install_hook" && -f "$module_dir/$install_hook" ]]; then
+    install_hook=$(submodule_get "$submodule" "hooks.install" "$module_yml")
+    if [[ -n "$install_hook" ]]; then
+        if [[ ! -f "$module_dir/$install_hook" ]]; then
+            _sub_error "Install hook not found: $module_dir/$install_hook"
+            return 1
+        fi
         bash "$module_dir/$install_hook"
     fi
 
-    # --- Install services ---
-    local services
+    # --- Install services and timers ---
+    local services timers unit
     mapfile -t services < <(submodule_get_array "$submodule" "services" "$module_yml")
-
-    # Ensure systemd directory exists (especially for user type)
-    if [[ ${#services[@]} -gt 0 || "$_sub_type" == "user" ]]; then
-        mkdir -p "$systemd_dir"
-        [[ "$_sub_type" == "user" ]] && chown -R "$_real_user:$_real_user" \
-            "$_real_home/.config/systemd"
+    mapfile -t timers < <(submodule_get_array "$submodule" "timers" "$module_yml")
+    if (( ${#services[@]} + ${#timers[@]} > 0 )); then
+        _submodule_owner_run "$systemd_dir" mkdir -p "$systemd_dir"
     fi
-
-    for svc in "${services[@]}"; do
-        [[ -z "$svc" ]] && continue
-        if [[ "$svc" == *.tpl ]]; then
-            _install_service_template "$module_dir/$svc" "$module_dir" "$submodule"
+    for unit in "${services[@]}" "${timers[@]}"; do
+        [[ -z "$unit" ]] && continue
+        if [[ "$unit" == *.tpl ]]; then
+            _install_service_template "$module_dir/$unit" "$systemd_dir"
         else
-            install -m 644 "$module_dir/$svc" "$systemd_dir/"
+            _submodule_owner_run "$systemd_dir" install -m 644 "$module_dir/$unit" "$systemd_dir/"
         fi
     done
 
-    # --- Install timers ---
-    local timers
-    mapfile -t timers < <(submodule_get_array "$submodule" "timers" "$module_yml")
-    for tmr in "${timers[@]}"; do
-        [[ -z "$tmr" ]] && continue
-        install -m 644 "$module_dir/$tmr" "$systemd_dir/"
-    done
-
-    # Fix ownership for user-type systemd units
-    if [[ "$_sub_type" == "user" && ( ${#services[@]} -gt 0 || ${#timers[@]} -gt 0 ) ]]; then
-        chown -R "$_real_user:$_real_user" "$systemd_dir"
-    fi
-
-    # --- Reload systemd if services or timers were installed ---
-    if [[ ${#services[@]} -gt 0 || ${#timers[@]} -gt 0 ]]; then
+    if (( ${#services[@]} + ${#timers[@]} > 0 )); then
         _systemctl_cmd daemon-reload
     fi
 
     # --- Enable timers ---
-    # Use enable without --now: with Persistent=true, --now would trigger
-    # immediate execution of overdue timers during installation.
-    # Exception: user timers use --now (no persistent boot trigger for user units)
-    for tmr in "${timers[@]}"; do
-        [[ -z "$tmr" ]] && continue
-        local timer_name
-        timer_name=$(basename "$tmr")
+    # System timers are enabled without --now: with Persistent=true, --now
+    # would start an overdue run during installation. User timers use --now,
+    # their manager starting them only at the next login otherwise.
+    local name
+    for unit in "${timers[@]}"; do
+        [[ -z "$unit" ]] && continue
+        name=$(basename "$unit")
         if [[ "$_sub_type" == "user" ]]; then
-            _systemctl_cmd enable --now "$timer_name" 2>/dev/null || true
+            _systemctl_cmd enable --now "$name" || _sub_warn "Could not enable $name"
         else
-            _systemctl_cmd enable "$timer_name" 2>/dev/null || true
+            _systemctl_cmd enable "$name" || _sub_warn "Could not enable $name"
         fi
     done
 
     # --- Enable services (only persistent daemons, not timer-triggered oneshots) ---
-    # If the submodule has timers, the services are triggered by those timers
-    # and must NOT be enabled directly (--now would start an immediate scan).
-    if [[ ${#timers[@]} -eq 0 ]]; then
-        for svc in "${services[@]}"; do
-            [[ -z "$svc" ]] && continue
-            local svc_name
-            svc_name=$(basename "$svc")
-            # Templates are rendered to their final name (without .tpl)
-            svc_name="${svc_name%.tpl}"
-            _systemctl_cmd enable --now "$svc_name" 2>/dev/null || true
+    # With timers, the services are triggered by those timers and must NOT be
+    # enabled directly (--now would start an immediate scan). A template
+    # (name@.service) runs by instance, started by its trigger.
+    if (( ${#timers[@]} == 0 )); then
+        for unit in "${services[@]}"; do
+            [[ -z "$unit" ]] && continue
+            name=$(basename "${unit%.tpl}")
+            [[ "$name" == *@.* ]] && continue
+            _systemctl_cmd enable --now "$name" || _sub_warn "Could not enable $name"
         done
     fi
 
     # --- Create directories ---
-    local dirs
-    mapfile -t dirs < <(yq -r ".submodules.\"$submodule\".dirs // [] | .[].path" "$module_yml" 2>/dev/null)
+    local dirs i dir_path dir_mode
+    mapfile -t dirs < <(yq -r ".submodules.\"$submodule\".dirs // [] | .[].path" "$module_yml")
     for i in "${!dirs[@]}"; do
-        local dir_path="${dirs[$i]}"
-        [[ -z "$dir_path" ]] && continue
-        dir_path=$(_submodule_expand_path "$dir_path")
-        local dir_mode
+        [[ -z "${dirs[$i]}" ]] && continue
+        dir_path=$(_submodule_expand_path "${dirs[$i]}")
         dir_mode=$(yq -r ".submodules.\"$submodule\".dirs[$i].mode // \"755\"" "$module_yml")
-        if [[ "$_sub_type" == "user" ]]; then
-            install -d -o "$_real_user" -g "$_real_user" -m "$dir_mode" "$dir_path"
-        else
-            install -d -m "$dir_mode" "$dir_path"
-        fi
+        _submodule_owner_run "$dir_path" mkdir -p "$dir_path"
+        _submodule_owner_run "$dir_path" chmod "$dir_mode" "$dir_path"
     done
 
     # --- Install configs (no_overwrite) ---
     _install_submodule_configs "$module_dir" "$submodule" "$module_yml"
 
-    # --- Install hooks (backup-local style) ---
+    # --- Install hook scripts (hook_scripts) ---
     _install_submodule_hooks "$module_dir" "$submodule" "$module_yml"
 
     # --- Install logrotate config ---
-    local logrotate
+    local logrotate logrotate_dest
     logrotate=$(submodule_get "$submodule" "logrotate" "$module_yml")
-    if [[ -n "$logrotate" && -f "$module_dir/$logrotate" ]]; then
-        local logrotate_dest
-        logrotate_dest=$(basename "$logrotate")
-        logrotate_dest="/etc/logrotate.d/${logrotate_dest%.tpl}"
-
+    if [[ -n "$logrotate" ]]; then
+        logrotate_dest=$(_submodule_logrotate_dest "$logrotate")
         if [[ "$logrotate" == *.tpl ]]; then
-            local real_user="${SUDO_USER:-$USER}"
-            local real_home
-            real_home=$(getent passwd "$real_user" | cut -d: -f6)
-            sed -e "s|__HOME__|$real_home|g" -e "s|__USER__|$real_user|g" \
-                "$module_dir/$logrotate" > "$logrotate_dest"
-            chmod 644 "$logrotate_dest"
+            _submodule_render "$module_dir/$logrotate" | _submodule_write "$logrotate_dest" 644
         else
             install -m 644 "$module_dir/$logrotate" "$logrotate_dest"
         fi
     fi
 
     # --- Register notifications ---
-    local notif_tags
-    mapfile -t notif_tags < <(yq -r ".submodules.\"$submodule\".notifications // [] | .[].tag" "$module_yml" 2>/dev/null)
+    local notif_tags tag icon notif_level
+    mapfile -t notif_tags < <(yq -r ".submodules.\"$submodule\".notifications // [] | .[].tag" "$module_yml")
     for i in "${!notif_tags[@]}"; do
-        local tag="${notif_tags[$i]}"
+        tag="${notif_tags[$i]}"
         [[ -z "$tag" ]] && continue
-        local icon
         icon=$(yq -r ".submodules.\"$submodule\".notifications[$i].icon // \"\"" "$module_yml")
-        local notif_level
         notif_level=$(yq -r ".submodules.\"$submodule\".notifications[$i].level // \"\"" "$module_yml")
         notify_register "$tag" "$icon" "$notif_level"
     done
 
     # --- Register in registry ---
-    if [[ "$_sub_type" == "user" ]]; then
-        REGISTRY_PATH_OVERRIDE="$_real_home/.config/system-scripts/registry" \
-            registry_set_submodule "$module_name" "$submodule" "$version" "$module_version"
-    else
+    _submodule_registry "$submodule" "$module_yml" \
         registry_set_submodule "$module_name" "$submodule" "$version" "$module_version"
-    fi
 
     _sub_success "Installed $module_name/$submodule v$version"
 }
@@ -577,13 +627,14 @@ submodule_uninstall() {
     local submodule="$2"
     local module_yml="${3:-$module_dir/module.yml}"
 
-    local module_name bin_path
+    local module_name
     module_name=$(module_get "name" "$module_yml")
 
     # --- Resolve type and user context ---
-    _submodule_resolve_context "$submodule" "$module_yml"
+    local _sub_type _real_user _real_home _real_uid
+    _submodule_resolve_context "$submodule" "$module_yml" || return 1
+    local bin_path systemd_dir
     bin_path=$(_submodule_bin_path)
-    local systemd_dir
     systemd_dir=$(_submodule_systemd_dir)
 
     # --- Section header ---
@@ -593,119 +644,75 @@ submodule_uninstall() {
         echo -e "${C_BOLD}Uninstalling ${module_name}/${submodule}${C_NC}"
     fi
 
-    # --- Check registry (use user registry for user-type submodules) ---
-    local _reg_installed=false
-    if [[ "$_sub_type" == "user" ]]; then
-        REGISTRY_PATH_OVERRIDE="$_real_home/.config/system-scripts/registry" \
-            registry_is_submodule_installed "$module_name" "$submodule" && _reg_installed=true
-    else
-        registry_is_submodule_installed "$module_name" "$submodule" && _reg_installed=true
-    fi
-
-    if [[ "$_reg_installed" == "false" ]]; then
+    if ! _is_sub_installed "$module_name" "$submodule" "$module_yml"; then
         _sub_info "$module_name/$submodule is not installed"
         return 0
     fi
 
     # --- Check for dependents (deps: protection) ---
-    local all_subs
-    mapfile -t all_subs < <(submodule_list "$module_yml")
-    local dependents=()
-    for other in "${all_subs[@]}"; do
-        [[ "$other" == "$submodule" ]] && continue
-        # Check registry with correct path for each submodule's type
-        local _other_type _other_installed=false
-        _other_type=$(submodule_get "$other" "type" "$module_yml")
-        [[ -z "$_other_type" ]] && _other_type="$_sub_type"
-        if [[ "$_other_type" == "user" ]]; then
-            REGISTRY_PATH_OVERRIDE="$_real_home/.config/system-scripts/registry" \
-                registry_is_submodule_installed "$module_name" "$other" && _other_installed=true
-        else
-            registry_is_submodule_installed "$module_name" "$other" && _other_installed=true
-        fi
-        [[ "$_other_installed" == "false" ]] && continue
-        local other_deps
-        mapfile -t other_deps < <(submodule_get_array "$other" "deps" "$module_yml")
-        for d in "${other_deps[@]}"; do
-            if [[ "$d" == "$submodule" ]]; then
-                dependents+=("$other")
-                break
-            fi
-        done
-    done
-
-    if [[ ${#dependents[@]} -gt 0 ]]; then
+    local dependents
+    mapfile -t dependents < <(_submodule_dependents "$module_name" "$submodule" "$module_yml")
+    if (( ${#dependents[@]} > 0 )); then
         _sub_error "Cannot uninstall $module_name/$submodule — required by: ${dependents[*]}"
         return 1
     fi
 
-    # --- Stop & disable timers ---
-    local timers
-    mapfile -t timers < <(submodule_get_array "$submodule" "timers" "$module_yml")
-    for tmr in "${timers[@]}"; do
-        [[ -z "$tmr" ]] && continue
-        local timer_name
-        timer_name=$(basename "$tmr")
-        _systemctl_cmd disable --now "$timer_name" 2>/dev/null || true
-    done
-
-    # --- Stop & disable services ---
-    local services
-    mapfile -t services < <(submodule_get_array "$submodule" "services" "$module_yml")
-    for svc in "${services[@]}"; do
-        [[ -z "$svc" ]] && continue
-        local svc_name
-        if [[ "$svc" == *.tpl ]]; then
-            svc_name=$(basename "${svc%.tpl}")
-        else
-            svc_name=$(basename "$svc")
+    # --- Stop & disable units ---
+    # Only an enabled unit is disabled: a unit without [Install], such as a
+    # timer's service, is stopped alone. A template (name@.service) has running
+    # instances to stop. A timer's persistent timestamp goes with it; `clean`
+    # fails on a timer without Persistent=, which has none.
+    local units unit state
+    mapfile -t units < <(_submodule_units "$submodule" "$module_yml")
+    for unit in "${units[@]}"; do
+        [[ -f "$systemd_dir/$unit" ]] || continue
+        if [[ "$unit" == *@.* ]]; then
+            _systemctl_cmd stop "${unit/@./@*.}" || _sub_warn "Could not stop the instances of $unit"
+            continue
         fi
-        _systemctl_cmd disable --now "$svc_name" 2>/dev/null || true
+        _systemctl_cmd stop "$unit" || _sub_warn "Could not stop $unit"
+        state=$(_systemctl_cmd is-enabled "$unit" 2>/dev/null || true)
+        if [[ "$state" == enabled* ]]; then
+            _systemctl_cmd disable "$unit" || _sub_warn "Could not disable $unit"
+        fi
+        if [[ "$unit" == *.timer ]]; then
+            _systemctl_cmd clean --what=state "$unit" 2>/dev/null || true
+        fi
     done
 
-    # --- Remove binaries ---
-    local source_field
-    source_field=$(submodule_get "$submodule" "source" "$module_yml")
-
-    if [[ -n "$source_field" ]]; then
-        local bin_name
-        bin_name=$(submodule_get "$submodule" "bin_name" "$module_yml")
-        [[ -n "$bin_name" ]] && rm -f "$bin_path/$bin_name"
-    else
-        # Multi-source
-        local sources
-        mapfile -t sources < <(submodule_get_array "$submodule" "source" "$module_yml")
-        for entry in "${sources[@]}"; do
-            [[ -z "$entry" ]] && continue
-            local bin="${entry##*:}"
-            rm -f "$bin_path/$bin"
-        done
+    # --- Remove binary ---
+    local bin_name
+    bin_name=$(submodule_get "$submodule" "bin_name" "$module_yml")
+    if [[ -n "$bin_name" ]]; then
+        rm -f "$bin_path/$bin_name"
+        _submodule_prune_home_dir "$bin_path"
     fi
 
-    # --- Remove service/timer files ---
-    for svc in "${services[@]}"; do
-        [[ -z "$svc" ]] && continue
-        local svc_name
-        if [[ "$svc" == *.tpl ]]; then
-            svc_name=$(basename "${svc%.tpl}")
-        else
-            svc_name=$(basename "$svc")
-        fi
-        rm -f "$systemd_dir/$svc_name"
+    # --- Remove unit files ---
+    for unit in "${units[@]}"; do
+        rm -f "$systemd_dir/$unit"
     done
-    for tmr in "${timers[@]}"; do
-        [[ -z "$tmr" ]] && continue
-        rm -f "$systemd_dir/$(basename "$tmr")"
-    done
-
-    if [[ ${#services[@]} -gt 0 || ${#timers[@]} -gt 0 ]]; then
+    if (( ${#units[@]} > 0 )); then
         _systemctl_cmd daemon-reload
+    fi
+    # The folders systemctl enable and a persistent user timer created
+    if [[ "$_sub_type" == "user" ]] && (( ${#units[@]} > 0 )); then
+        local wants
+        for wants in "$systemd_dir"/*.wants; do
+            _submodule_prune_home_dir "$wants"
+        done
+        _submodule_prune_home_dir "$systemd_dir"
+        _submodule_prune_home_dir "$_real_home/.local/share/systemd/timers"
     fi
 
     # --- Run uninstall hook ---
     local uninstall_hook
-    uninstall_hook=$(yq -r ".submodules.\"$submodule\".hooks.uninstall // \"\"" "$module_yml")
-    if [[ -n "$uninstall_hook" && -f "$module_dir/$uninstall_hook" ]]; then
+    uninstall_hook=$(submodule_get "$submodule" "hooks.uninstall" "$module_yml")
+    if [[ -n "$uninstall_hook" ]]; then
+        if [[ ! -f "$module_dir/$uninstall_hook" ]]; then
+            _sub_error "Uninstall hook not found: $module_dir/$uninstall_hook"
+            return 1
+        fi
         bash "$module_dir/$uninstall_hook"
     fi
 
@@ -713,49 +720,42 @@ submodule_uninstall() {
     local logrotate
     logrotate=$(submodule_get "$submodule" "logrotate" "$module_yml")
     if [[ -n "$logrotate" ]]; then
-        local logrotate_name
-        logrotate_name=$(basename "$logrotate")
-        rm -f "/etc/logrotate.d/${logrotate_name%.tpl}"
+        rm -f "$(_submodule_logrotate_dest "$logrotate")"
     fi
 
     # --- Remove directories (reverse order, deepest first) ---
-    local dirs
-    mapfile -t dirs < <(yq -r ".submodules.\"$submodule\".dirs // [] | .[].path" "$module_yml" 2>/dev/null)
-    if [[ ${#dirs[@]} -gt 0 ]]; then
-        local reversed=()
-        for (( i=${#dirs[@]}-1; i>=0; i-- )); do
-            reversed+=("${dirs[$i]}")
-        done
-        for dir_path in "${reversed[@]}"; do
-            [[ -z "$dir_path" ]] && continue
-            dir_path=$(_submodule_expand_path "$dir_path")
-            if [[ -d "$dir_path" ]]; then
-                rm -rf "$dir_path"
+    local dirs i dir_path
+    mapfile -t dirs < <(yq -r ".submodules.\"$submodule\".dirs // [] | .[].path" "$module_yml")
+    for (( i = ${#dirs[@]} - 1; i >= 0; i-- )); do
+        [[ -z "${dirs[$i]}" ]] && continue
+        dir_path=$(_submodule_expand_path "${dirs[$i]}")
+        if [[ -d "$dir_path" ]]; then
+            if ! _submodule_removable_dir "$dir_path"; then
+                _sub_warn "Kept $dir_path: not a directory an uninstall may remove"
+                continue
             fi
-        done
-    fi
+            rm -rf -- "${dir_path:?}"
+        fi
+        _submodule_prune_home_dir "$(dirname "$dir_path")"
+    done
 
     # --- Unregister notifications ---
-    local notif_tags
-    mapfile -t notif_tags < <(yq -r ".submodules.\"$submodule\".notifications // [] | .[].tag" "$module_yml" 2>/dev/null)
+    local notif_tags tag
+    mapfile -t notif_tags < <(yq -r ".submodules.\"$submodule\".notifications // [] | .[].tag" "$module_yml")
     for tag in "${notif_tags[@]}"; do
         [[ -z "$tag" ]] && continue
         notify_unregister "$tag"
     done
 
-    # --- Remove hooks ---
-    _uninstall_submodule_hooks "$submodule" "$module_yml"
+    # --- Remove hook scripts ---
+    _uninstall_submodule_hooks "$module_dir" "$submodule" "$module_yml"
 
     # --- Show preserved configs ---
-    _show_preserved_configs "$submodule" "$module_yml" "$_real_home"
+    _show_preserved_configs "$submodule" "$module_yml"
 
     # --- Unregister from registry ---
-    if [[ "$_sub_type" == "user" ]]; then
-        REGISTRY_PATH_OVERRIDE="$_real_home/.config/system-scripts/registry" \
-            registry_remove_submodule "$module_name" "$submodule"
-    else
+    _submodule_registry "$submodule" "$module_yml" \
         registry_remove_submodule "$module_name" "$submodule"
-    fi
 
     _sub_success "Uninstalled $module_name/$submodule"
 }
@@ -771,35 +771,106 @@ submodule_uninstall() {
 #
 # Optional callbacks (define as functions before calling):
 #   _module_post_install  module_name  — Custom summary after install
-#   _module_pre_uninstall              — Cleanup before uninstall loop
 #   _module_post_uninstall module_name — Custom messages after uninstall
 
+# Parse an orchestrator's options
+# Args: allow_force options...
+# Sets: _mode (all, only or interactive), _only (comma-separated), _force
+_submodule_parse_args() {
+    local allow_force="$1"
+    shift
+    _mode="interactive"
+    _only=""
+    _force=false
+    while (( $# > 0 )); do
+        case "$1" in
+            --all) _mode="all" ;;
+            --only)
+                if [[ -z "${2:-}" || "$2" == -* ]]; then
+                    error "--only needs a comma-separated list of submodules"
+                    return 1
+                fi
+                _mode="only"
+                _only="$2"
+                shift
+                ;;
+            --force)
+                if [[ "$allow_force" != "true" ]]; then
+                    error "Unknown option: $1"
+                    return 1
+                fi
+                _force=true
+                ;;
+            *)
+                error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+        shift
+    done
+}
+
+# Check that each selected name is a submodule of the module
+# Args: module_yml names...
+_submodule_check_names() {
+    local module_yml="$1" name
+    shift
+    for name in "$@"; do
+        if ! submodule_list "$module_yml" | grep -qxF -- "$name"; then
+            error "Unknown submodule: $name"
+            return 1
+        fi
+    done
+}
+
+# Let the user pick submodules, with gum or a numbered list
+# Args: header names...
+# Output: the names picked, one per line
+_submodule_pick() {
+    local header="$1"
+    shift
+    local names=("$@") picked=() selection num i
+
+    if has_gum; then
+        mapfile -t picked < <(printf '%s\n' "all" "${names[@]}" | gum choose --no-limit --header "$header")
+        if printf '%s\n' "${picked[@]}" | grep -qx "all"; then
+            picked=("${names[@]}")
+        fi
+    else
+        echo -e "${C_BOLD}${header}${C_NC}" >&2
+        echo "  Enter numbers separated by spaces, or 'all' for everything" >&2
+        echo "" >&2
+        for i in "${!names[@]}"; do
+            echo -e "  ${C_BOLD}$((i + 1)))${C_NC} ${names[$i]}" >&2
+        done
+        echo "" >&2
+        read -rp "Selection [all]: " selection
+        selection="${selection:-all}"
+        if [[ "$selection" == "all" ]]; then
+            picked=("${names[@]}")
+        else
+            for num in $selection; do
+                if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= ${#names[@]} )); then
+                    picked+=("${names[$((num - 1))]}")
+                fi
+            done
+        fi
+    fi
+    if (( ${#picked[@]} > 0 )); then
+        printf '%s\n' "${picked[@]}"
+    fi
+}
+
 # Run the full submodule install orchestration for a module
-# Args: module_dir [-- CLI args...]
-# CLI args: --all (install all), --only <names> (comma-separated), or none (interactive)
+# Args: module_dir [CLI args...]
+# CLI args: --all (install all), --only <names> (comma-separated), --force, or none (interactive)
 submodule_run_install() {
     local module_dir="$1"; shift
     local module_yml="$module_dir/module.yml"
 
     # --- Parse CLI arguments ---
-    local install_mode="interactive"
-    local only_list=""
-    local force_mode=false
-
-    for arg in "$@"; do
-        case "$arg" in
-            --all) install_mode="all" ;;
-            --force) force_mode=true ;;
-            --only)
-                install_mode="only"
-                ;;
-            *)
-                if [[ "$install_mode" == "only" && -z "$only_list" ]]; then
-                    only_list="$arg"
-                fi
-                ;;
-        esac
-    done
+    local _mode _only _force
+    _submodule_parse_args true "$@" || return 1
 
     # --- Module metadata ---
     local module_name module_version
@@ -807,22 +878,22 @@ submodule_run_install() {
     module_version=$(module_get "version" "$module_yml")
 
     # --- List all submodules ---
-    local all_submodules=()
+    local all_submodules=() sub
     mapfile -t all_submodules < <(submodule_list "$module_yml")
 
     # Show header + status only in interactive/all mode (--only skips: caller already displayed it)
-    if [[ "$install_mode" != "only" ]]; then
+    if [[ "$_mode" != "only" ]]; then
         info "Module: $module_name v$module_version"
         echo ""
 
+        local sub_desc sub_ver sub_iver
         for sub in "${all_submodules[@]}"; do
-            local sub_desc sub_ver sub_iver
             sub_desc=$(submodule_get "$sub" "description" "$module_yml")
             sub_ver=$(submodule_get "$sub" "version" "$module_yml")
 
             if _is_sub_installed "$module_name" "$sub" "$module_yml"; then
                 sub_iver=$(_get_sub_version "$module_name" "$sub" "$module_yml")
-                if [[ "$force_mode" == "true" ]]; then
+                if [[ "$_force" == "true" ]]; then
                     echo -e "  ${C_YELLOW}[reinstall v$sub_iver]${C_NC} $sub — $sub_desc"
                 else
                     echo -e "  ${C_GREEN}[installed v$sub_iver]${C_NC} $sub — $sub_desc"
@@ -836,27 +907,25 @@ submodule_run_install() {
 
     # --- Filter submodules ---
     local available_subs=()
-    if [[ "$force_mode" == "true" ]]; then
+    if [[ "$_force" == "true" ]]; then
         # Force mode: all submodules are candidates (reinstall installed ones)
         available_subs=("${all_submodules[@]}")
     else
         # Normal mode: not-yet-installed OR outdated submodules
+        local sub_iver sub_aver
         for sub in "${all_submodules[@]}"; do
             if ! _is_sub_installed "$module_name" "$sub" "$module_yml"; then
                 available_subs+=("$sub")
             else
-                # Check if installed version is outdated
-                local sub_iver sub_aver sub_cmp
                 sub_iver=$(_get_sub_version "$module_name" "$sub" "$module_yml")
                 sub_aver=$(submodule_get "$sub" "version" "$module_yml")
-                sub_cmp=$(version_compare "$sub_iver" "$sub_aver")
-                if [[ "$sub_cmp" == "lt" ]]; then
+                if [[ "$(version_compare "$sub_iver" "$sub_aver")" == "lt" ]]; then
                     available_subs+=("$sub")
                 fi
             fi
         done
 
-        if [[ ${#available_subs[@]} -eq 0 ]]; then
+        if (( ${#available_subs[@]} == 0 )); then
             success "All submodules are up to date"
             return 0
         fi
@@ -864,76 +933,28 @@ submodule_run_install() {
 
     # --- Select submodules ---
     local selected=()
-
-    case "$install_mode" in
+    case "$_mode" in
         all)
             selected=("${all_submodules[@]}")
             ;;
         only)
-            IFS=',' read -ra selected <<< "$only_list"
-            # Validate names
-            for sel in "${selected[@]}"; do
-                local found=false
-                for sub in "${all_submodules[@]}"; do
-                    [[ "$sel" == "$sub" ]] && found=true && break
-                done
-                if [[ "$found" == "false" ]]; then
-                    error "Unknown submodule: $sel" "exit"
-                fi
-            done
+            IFS=',' read -ra selected <<< "$_only"
+            _submodule_check_names "$module_yml" "${selected[@]}" || return 1
             ;;
         interactive)
             local select_header="Select submodules to install:"
-            [[ "$force_mode" == "true" ]] && select_header="Select submodules to reinstall:"
-
-            if has_gum; then
-                local gum_selected=()
-                mapfile -t gum_selected < <(
-                    printf '%s\n' "all" "${available_subs[@]}" | \
-                    gum choose --no-limit --header "$select_header"
-                )
-                # Expand "all" to full list
-                if printf '%s\n' "${gum_selected[@]}" | grep -qx "all"; then
-                    selected=("${available_subs[@]}")
-                else
-                    selected=("${gum_selected[@]}")
-                fi
-            else
-                echo -e "${C_BOLD}${select_header}${C_NC}"
-                echo "  Enter numbers separated by spaces, or 'all' for everything"
-                echo ""
-                local i=1
-                for sub in "${available_subs[@]}"; do
-                    local sub_desc
-                    sub_desc=$(submodule_get "$sub" "description" "$module_yml")
-                    echo -e "  ${C_BOLD}$i)${C_NC} $sub — $sub_desc"
-                    ((i++))
-                done
-                echo ""
-                local selection
-                read -rp "Selection [all]: " selection
-                selection="${selection:-all}"
-
-                if [[ "$selection" == "all" ]]; then
-                    selected=("${available_subs[@]}")
-                else
-                    for num in $selection; do
-                        if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= ${#available_subs[@]} )); then
-                            selected+=("${available_subs[$((num-1))]}")
-                        fi
-                    done
-                fi
-            fi
+            [[ "$_force" == "true" ]] && select_header="Select submodules to reinstall:"
+            mapfile -t selected < <(_submodule_pick "$select_header" "${available_subs[@]}")
             ;;
     esac
 
-    if [[ ${#selected[@]} -eq 0 ]]; then
+    if (( ${#selected[@]} == 0 )); then
         warn "No submodules selected. Nothing to install."
         return 0
     fi
 
     echo ""
-    if [[ "$force_mode" == "true" ]]; then
+    if [[ "$_force" == "true" ]]; then
         info "Reinstalling ${#selected[@]} submodule(s)..."
     else
         info "Installing ${#selected[@]} submodule(s)..."
@@ -943,8 +964,8 @@ submodule_run_install() {
     # --- Install loop ---
     local idx=0
     for sub in "${selected[@]}"; do
-        (( ++idx ))
-        SUBMODULE_FORCE="$force_mode" \
+        idx=$((idx + 1))
+        SUBMODULE_FORCE="$_force" \
         SUBMODULE_PROGRESS_CURRENT=$idx SUBMODULE_PROGRESS_TOTAL=${#selected[@]} \
             submodule_install "$module_dir" "$sub" "$module_yml"
         echo ""
@@ -957,9 +978,7 @@ submodule_run_install() {
     echo -e "${C_BLUE}Installed submodules:${C_NC}"
     for sub in "${all_submodules[@]}"; do
         if _is_sub_installed "$module_name" "$sub" "$module_yml"; then
-            local sub_ver
-            sub_ver=$(_get_sub_version "$module_name" "$sub" "$module_yml")
-            echo "  • $sub v$sub_ver"
+            echo "  • $sub v$(_get_sub_version "$module_name" "$sub" "$module_yml")"
         fi
     done
     echo ""
@@ -971,7 +990,7 @@ submodule_run_install() {
 }
 
 # Run the full submodule uninstall orchestration for a module
-# Args: module_dir [-- CLI args...]
+# Args: module_dir [CLI args...]
 # CLI args: --all, --only <names>, or none (interactive)
 submodule_run_uninstall() {
     local module_dir="$1"; shift
@@ -980,25 +999,11 @@ submodule_run_uninstall() {
     module_name=$(module_get "name" "$module_yml")
 
     # --- Parse CLI arguments ---
-    local uninstall_mode="interactive"
-    local only_list=""
-
-    for arg in "$@"; do
-        case "$arg" in
-            --all) uninstall_mode="all" ;;
-            --only)
-                uninstall_mode="only"
-                ;;
-            *)
-                if [[ "$uninstall_mode" == "only" && -z "$only_list" ]]; then
-                    only_list="$arg"
-                fi
-                ;;
-        esac
-    done
+    local _mode _only _force
+    _submodule_parse_args false "$@" || return 1
 
     # --- Build installed list from all defined submodules (handles mixed types) ---
-    local all_subs_yml=()
+    local all_subs_yml=() sub
     mapfile -t all_subs_yml < <(submodule_list "$module_yml")
 
     local installed=()
@@ -1008,76 +1013,34 @@ submodule_run_uninstall() {
         fi
     done
 
-    if [[ ${#installed[@]} -eq 0 ]]; then
+    if (( ${#installed[@]} == 0 )); then
         warn "$module_name: no installed submodules found"
         return 0
     fi
 
     # --- Select submodules ---
     local selected=()
-
-    case "$uninstall_mode" in
+    case "$_mode" in
         all)
             selected=("${installed[@]}")
             ;;
         only)
-            IFS=',' read -ra selected <<< "$only_list"
+            IFS=',' read -ra selected <<< "$_only"
+            _submodule_check_names "$module_yml" "${selected[@]}" || return 1
             ;;
         interactive)
             info "Installed submodules:"
             for sub in "${installed[@]}"; do
-                local sub_ver
-                sub_ver=$(_get_sub_version "$module_name" "$sub" "$module_yml")
-                echo -e "  ${C_GREEN}$sub${C_NC} v$sub_ver"
+                echo -e "  ${C_GREEN}$sub${C_NC} v$(_get_sub_version "$module_name" "$sub" "$module_yml")"
             done
             echo ""
-
-            if has_gum; then
-                local gum_selected=()
-                mapfile -t gum_selected < <(
-                    printf '%s\n' "all" "${installed[@]}" | \
-                    gum choose --no-limit --header "Select submodules to uninstall:"
-                )
-                if printf '%s\n' "${gum_selected[@]}" | grep -qx "all"; then
-                    selected=("${installed[@]}")
-                else
-                    selected=("${gum_selected[@]}")
-                fi
-            else
-                echo -e "${C_BOLD}Select submodules to uninstall:${C_NC}"
-                echo "  Enter numbers separated by spaces, or 'all' for everything"
-                echo ""
-                local i=1
-                for sub in "${installed[@]}"; do
-                    echo -e "  ${C_BOLD}$i)${C_NC} $sub"
-                    ((i++))
-                done
-                echo ""
-                local selection
-                read -rp "Selection [all]: " selection
-                selection="${selection:-all}"
-
-                if [[ "$selection" == "all" ]]; then
-                    selected=("${installed[@]}")
-                else
-                    for num in $selection; do
-                        if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= ${#installed[@]} )); then
-                            selected+=("${installed[$((num-1))]}")
-                        fi
-                    done
-                fi
-            fi
+            mapfile -t selected < <(_submodule_pick "Select submodules to uninstall:" "${installed[@]}")
             ;;
     esac
 
-    if [[ ${#selected[@]} -eq 0 ]]; then
+    if (( ${#selected[@]} == 0 )); then
         warn "No submodules selected. Nothing to uninstall."
         return 0
-    fi
-
-    # --- Optional pre-uninstall callback ---
-    if declare -F _module_pre_uninstall &>/dev/null; then
-        _module_pre_uninstall
     fi
 
     info "Uninstalling ${#selected[@]} submodule(s)..."
@@ -1089,7 +1052,7 @@ submodule_run_uninstall() {
     # --- Uninstall loop ---
     local idx=0
     for sub in "${selected[@]}"; do
-        (( ++idx ))
+        idx=$((idx + 1))
         SUBMODULE_PROGRESS_CURRENT=$idx SUBMODULE_PROGRESS_TOTAL=${#selected[@]} \
             submodule_uninstall "$module_dir" "$sub" "$module_yml"
         echo ""
@@ -1102,10 +1065,10 @@ submodule_run_uninstall() {
     local remaining=0
     for sub in "${all_subs_yml[@]}"; do
         if _is_sub_installed "$module_name" "$sub" "$module_yml"; then
-            (( ++remaining ))
+            remaining=$((remaining + 1))
         fi
     done
-    if [[ "$remaining" -gt 0 ]]; then
+    if (( remaining > 0 )); then
         info "$remaining submodule(s) still installed"
     fi
 
@@ -1122,15 +1085,14 @@ submodule_run_uninstall() {
 # =============================================================================
 
 # Install a service template (.tpl) with dynamic substitutions
-# Args: template_path module_dir submodule_name
+# Args: template_path systemd_dir
 _install_service_template() {
     local tpl_path="$1"
-    local module_dir="$2"
-    local submodule="$3"
+    local systemd_dir="$2"
 
     local svc_name
     svc_name=$(basename "${tpl_path%.tpl}")
-    local output="/etc/systemd/system/$svc_name"
+    local output="$systemd_dir/$svc_name"
 
     # Special handling for download-clamscan.service.tpl
     if [[ "$svc_name" == "download-clamscan.service" ]]; then
@@ -1157,18 +1119,10 @@ _install_service_template() {
 
             # Append the rest of the template
             sed -n '/##READWRITE_PATHS##/,$p' "$tpl_path" | tail -n +2
-        } > "$output"
+        } | _submodule_write "$output" 644
     else
-        # Generic template: substitute __HOME__ and __USER__
-        local current_user="${SUDO_USER:-$USER}"
-        local current_home
-        current_home=$(getent passwd "$current_user" | cut -d: -f6)
-        sed -e "s|__HOME__|$current_home|g" \
-            -e "s|__USER__|$current_user|g" \
-            "$tpl_path" > "$output"
+        _submodule_render "$tpl_path" | _submodule_write "$output" 644
     fi
-
-    chmod 644 "$output"
 }
 
 # Install config files for a submodule (with no_overwrite support)
@@ -1178,114 +1132,69 @@ _install_submodule_configs() {
     local submodule="$2"
     local module_yml="$3"
 
-    local config_count
+    local config_count i src dest no_overwrite
     config_count=$(yq -r ".submodules.\"$submodule\".configs // [] | length" "$module_yml")
-    [[ "$config_count" -eq 0 ]] && return 0
-
-    local real_user="${SUDO_USER:-$USER}"
-    local real_home
-    real_home=$(getent passwd "$real_user" | cut -d: -f6)
-
-    local i
-    for (( i=0; i<config_count; i++ )); do
-        local src dest no_overwrite
+    for (( i = 0; i < config_count; i++ )); do
         src=$(yq -r ".submodules.\"$submodule\".configs[$i].source" "$module_yml")
         dest=$(yq -r ".submodules.\"$submodule\".configs[$i].dest" "$module_yml")
         no_overwrite=$(yq -r ".submodules.\"$submodule\".configs[$i].no_overwrite // false" "$module_yml")
-
-        # Expand ~ to real home
-        dest="${dest/#\~/$real_home}"
-
-        # Create parent directory
-        local dest_dir
-        dest_dir=$(dirname "$dest")
-        mkdir -p "$dest_dir"
-        chown "$real_user:$real_user" "$dest_dir"
+        dest=$(_submodule_expand_path "$dest")
 
         if [[ "$no_overwrite" == "true" && -f "$dest" ]]; then
             _sub_info "Config already exists: $dest"
-        else
-            cp "$module_dir/$src" "$dest"
-            chown "$real_user:$real_user" "$dest"
-            _sub_success "Created: $dest"
+            continue
         fi
+        _submodule_owner_run "$dest" mkdir -p "$(dirname "$dest")"
+        _submodule_owner_run "$dest" install -m 644 "$module_dir/$src" "$dest"
+        _sub_success "Created: $dest"
     done
 }
 
-# Install hook scripts for a submodule (backup-local pattern)
+# Install a submodule's hook scripts: each <event>/<name>.sh of its
+# hook_scripts folder goes to <hooks.d>/<event>/<name>.sh, where hooks.d is
+# SUBMODULE_HOOKS_DIR or /usr/local/lib/system-scripts/hooks.d
 # Args: module_dir submodule_name module_yml
 _install_submodule_hooks() {
     local module_dir="$1"
     local submodule="$2"
     local module_yml="$3"
+    local hooks_dir="${SUBMODULE_HOOKS_DIR:-/usr/local/lib/system-scripts/hooks.d}"
 
-    local hooks_dir
-    hooks_dir=$(yq -r ".submodules.\"$submodule\".hooks.install // \"\"" "$module_yml")
-    [[ -z "$hooks_dir" ]] && return 0
-
-    # If hooks.install points to a .sh file, it's handled as an install hook (already run)
-    [[ "$hooks_dir" == *.sh ]] && return 0
-
-    # It's a directory of hook scripts — install them
-    local lib_hooks_dir="/usr/local/lib/system-scripts/hooks.d"
-
-    if [[ -d "$module_dir/$hooks_dir" ]]; then
-        local hook_subdir
-        for hook_subdir in "$module_dir/$hooks_dir"/*/; do
-            [[ -d "$hook_subdir" ]] || continue
-            local subdir_name
-            subdir_name=$(basename "$hook_subdir")
-            install -d -m 755 "$lib_hooks_dir/$subdir_name"
-            for hook in "$hook_subdir"*.sh; do
-                [[ -f "$hook" ]] || continue
-                install -m 755 "$hook" "$lib_hooks_dir/$subdir_name/"
-                _sub_success "Installed hook: $subdir_name/$(basename "$hook")"
-            done
-        done
+    local scripts_dir hook event
+    scripts_dir=$(submodule_get "$submodule" "hook_scripts" "$module_yml")
+    [[ -n "$scripts_dir" ]] || return 0
+    if [[ ! -d "$module_dir/$scripts_dir" ]]; then
+        _sub_error "Hook scripts folder not found: $module_dir/$scripts_dir"
+        return 1
     fi
 
-    # Install hook configs
-    local hooks_config
-    hooks_config=$(yq -r ".submodules.\"$submodule\".hooks.hooks_config // \"\"" "$module_yml")
-    if [[ -n "$hooks_config" && -d "$module_dir/$hooks_config" ]]; then
-        local real_user="${SUDO_USER:-$USER}"
-        local real_home
-        real_home=$(getent passwd "$real_user" | cut -d: -f6)
-        local config_dir="$real_home/.config/backup/hooks"
-        mkdir -p "$config_dir"
-
-        for hook_cfg in "$module_dir/$hooks_config/"*.yml; do
-            [[ -f "$hook_cfg" ]] || continue
-            local cfg_name
-            cfg_name=$(basename "$hook_cfg")
-            if [[ ! -f "$config_dir/$cfg_name" ]]; then
-                cp "$hook_cfg" "$config_dir/$cfg_name"
-                chown "$real_user:$real_user" "$config_dir/$cfg_name"
-                _sub_success "Created: $config_dir/$cfg_name"
-            else
-                _sub_info "Config already exists: $config_dir/$cfg_name"
-            fi
-        done
-        chown "$real_user:$real_user" "$config_dir"
-    fi
+    for hook in "$module_dir/$scripts_dir"/*/*.sh; do
+        [[ -f "$hook" ]] || continue
+        event=$(basename "$(dirname "$hook")")
+        install -d -m 755 "$hooks_dir/$event"
+        install -m 755 "$hook" "$hooks_dir/$event/"
+        _sub_success "Installed hook: $event/$(basename "$hook")"
+    done
 }
 
-# Uninstall hook scripts for a submodule
-# Args: submodule_name module_yml
+# Remove the hook scripts a submodule ships, leaving any other script of
+# hooks.d, then each folder left empty
+# Args: module_dir submodule_name module_yml
 _uninstall_submodule_hooks() {
-    local submodule="$1"
-    local module_yml="$2"
+    local module_dir="$1"
+    local submodule="$2"
+    local module_yml="$3"
+    local hooks_dir="${SUBMODULE_HOOKS_DIR:-/usr/local/lib/system-scripts/hooks.d}"
 
-    local hooks_dir
-    hooks_dir=$(yq -r ".submodules.\"$submodule\".hooks.install // \"\"" "$module_yml")
-    [[ -z "$hooks_dir" ]] && return 0
-    [[ "$hooks_dir" == *.sh ]] && return 0
+    local scripts_dir hook event
+    scripts_dir=$(submodule_get "$submodule" "hook_scripts" "$module_yml")
+    [[ -n "$scripts_dir" ]] || return 0
 
-    local lib_hooks_dir="/usr/local/lib/system-scripts/hooks.d"
-
-    if [[ -d "$lib_hooks_dir" ]]; then
-        rm -rf "$lib_hooks_dir/pre-backup"
-        rm -rf "$lib_hooks_dir/post-backup"
-        rmdir "$lib_hooks_dir" 2>/dev/null || true
-    fi
+    for hook in "$module_dir/$scripts_dir"/*/*.sh; do
+        [[ -f "$hook" ]] || continue
+        event=$(basename "$(dirname "$hook")")
+        rm -f "$hooks_dir/$event/$(basename "$hook")"
+        rmdir "$hooks_dir/$event" 2>/dev/null || true
+    done
+    rmdir "$hooks_dir" 2>/dev/null || true
 }

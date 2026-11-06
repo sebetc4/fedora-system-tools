@@ -50,7 +50,7 @@ Override with `REGISTRY_PATH_OVERRIDE` env var (used by submodule engine for use
 #### `registry_init`
 
 Ensure registry file exists. Creates the file with a header comment if absent. Called automatically by `registry_set`.
-Under `sudo` with `REGISTRY_PATH_OVERRIDE`, the folder and file it creates belong to `SUDO_USER`.
+Under `sudo` with `REGISTRY_PATH_OVERRIDE`, the folder and file it creates belong to `SUDO_USER`, the folder created by the user through `runuser` with any missing parent such as `~/.config`.
 Every later rewrite keeps the file's owner and mode, so the user registry stays the user's.
 
 ---

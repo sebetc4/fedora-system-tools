@@ -10,7 +10,7 @@
 #   ui_choose "A" "B" "C"                    # Pick from a list
 #   ui_input "Prompt" "placeholder"          # Single-line text input
 #   ui_password "Prompt"                     # Silent password input
-#   ui_press_enter ["message"]               # Pause (skipped when NONINTERACTIVE=1)
+#   ui_press_enter ["message"]               # Pause (skipped when NONINTERACTIVE=1 or no terminal)
 #   ui_filter "A" "B" "C"                    # Fuzzy filter a list
 #   ui_table "Col1,Col2" "val1,val2" ...     # Table display
 #   ui_header "TITLE"                        # Styled header with border
@@ -49,8 +49,11 @@ ui_confirm() {
 # =============================================================================
 # Usage: ui_press_enter
 # Optional message: ui_press_enter "Review the output above"
+# Skipped when NONINTERACTIVE=1, which sudo does not pass on, and when no
+# terminal is there to answer, as over ssh without -t.
 ui_press_enter() {
     [[ "${NONINTERACTIVE:-0}" == "1" ]] && return 0
+    { : < /dev/tty; } 2>/dev/null || return 0
     local msg="${1:-Press Enter to continue...}"
     read -r -p "$msg" < /dev/tty
 }

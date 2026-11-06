@@ -58,7 +58,12 @@ registry_init() {
 
     local created=false
     if [[ ! -d "$registry_dir" ]]; then
-        mkdir -p "$registry_dir"
+        # Under sudo, the user creates the user registry's folder, its missing parents included
+        if [[ $EUID -eq 0 && -n "${REGISTRY_PATH_OVERRIDE:-}" && -n "${SUDO_USER:-}" ]]; then
+            runuser -u "$SUDO_USER" -- mkdir -p "$registry_dir"
+        else
+            mkdir -p "$registry_dir"
+        fi
         created=true
     fi
     if [[ ! -f "$registry_path" ]]; then

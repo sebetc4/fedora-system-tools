@@ -54,9 +54,7 @@ Static files installed with `install -m 644`. Used by system modules (`type: sys
 
 ## User-Level Config (Templates)
 
-Template files (`.tpl`) with `__HOME__` and `__USER__` placeholders, substituted during installation via `sed`. Used by user modules (`type: user`) that log to `~/.local/log/`.
-
-**File location:** `modules/<module>/logrotate/user-logs.tpl`
+Template files (`.tpl`) with `__HOME__` and `__USER__` placeholders, substituted during installation via `sed`. Used by scripts that log to `~/.local/log/`. A template the submodule engine installs is named after its config, `<name>.tpl`, and installed as `/etc/logrotate.d/<user>-<name>`; a standalone module names its own, `logrotate/user-logs.tpl`.
 
 ```
 __HOME__/.local/log/<module>/*.log {
@@ -77,7 +75,7 @@ __HOME__/.local/log/<module>/*.log {
 |--------|----------|----------|-------------|
 | notifications | `logrotate/user-logs.tpl` | `~/.local/log/notifications/*.log` | `/etc/logrotate.d/<user>-notifications` |
 | backup-vps | `logrotate/user-logs.tpl` | `~/.local/log/backup-vps/*.log` | `/etc/logrotate.d/<user>-backup-vps` |
-| backup (bitwarden) | `bitwarden/logrotate/user-logs.tpl` | `~/.local/log/backup-bitwarden/*.log` | `/etc/logrotate.d/<user>-backup-bitwarden` |
+| backup (bitwarden) | `bitwarden/logrotate/backup-bitwarden.tpl` | `~/.local/log/backup-bitwarden/*.log` | `/etc/logrotate.d/<user>-backup-bitwarden` |
 
 ### Why `su` and `copytruncate`
 
@@ -102,15 +100,15 @@ submodules:
   core:
     logrotate: logrotate/clamav-scripts      # Static file
   bitwarden:
-    logrotate: bitwarden/logrotate/user-logs.tpl  # Template
+    logrotate: bitwarden/logrotate/backup-bitwarden.tpl  # Template
 ```
 
 `lib/submodule.sh` handles installation automatically during `submodule_install`:
 
 - **Static files** → `install -m 644` to `/etc/logrotate.d/<basename>`
-- **Templates** (`.tpl`) → `sed` substitution of `__HOME__` and `__USER__`, then write to `/etc/logrotate.d/<basename without .tpl>`
+- **Templates** (`.tpl`) → `sed` substitution of `__HOME__` and `__USER__`, then write to `/etc/logrotate.d/<user>-<basename without .tpl>`, so that two users' or two submodules' templates never share a name
 
-Uninstallation removes the config via `rm -f "/etc/logrotate.d/<basename>"`.
+Uninstallation removes the config from the same path.
 
 ### Standalone modules (manual)
 

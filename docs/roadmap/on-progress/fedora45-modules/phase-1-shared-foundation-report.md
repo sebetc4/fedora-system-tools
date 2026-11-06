@@ -130,21 +130,67 @@ five counters (`((i++))`, `(( ++idx ))`, `(( ++remaining ))`); `setup.sh` keeps 
 `has_gum`, `ui_choose`, `ui_confirm`, `ui_header`, `error`, `warn`, `info`, `success`, of
 `_version_compare` and of the color defaults, which `color_reload` now resets alone.
 
+Session resumed the same day on `lib/submodule.sh`, the engine. Its removals went beyond what
+a module declares: `backup/local`'s uninstall deleted `hooks.d/pre-backup` and `post-backup`
+whole, where `docs/modules/backup/local.md` invites user hooks and where this machine holds
+`btrfs-snapshot.sh`, which no module ships; a declared directory went by `rm -rf` whatever its
+path; `notify_unregister` left `levels.conf` and its folder. Removals now follow the first
+decision below. The install wrote in the home as root: `install -d -o` owns the last folder
+alone, so `vps` made `~/.local/log` root's, and `registry_init` and `notify_register` did the
+same with a missing `~/.config`. In a `fedora:45` container, for a user without `~/.config`,
+HEAD's engine leaves `~/.local`, `~/.local/log`, `~/.config` and `~/.config/probe` to root, the
+new one nothing.
+
+Other defects fixed: `system_deps` checked with `command -v`, which never finds `inotify-tools`,
+behind a `[y/N]` whose default skipped them; a missing `bw` stopping `make install-backup` before
+`vps`; the deps protection reading a typeless dependent with the removed submodule's type;
+global context variables, which a dependency's install overwrote; a declared hook file missing
+skipped silently; templates' logrotate configs named after the file, so `bitwarden`'s and
+`vps`'s `user-logs.tpl` collided, now `<user>-<name>` as `docs/core/logrotate.md` said; unknown
+options ignored; unit failures silenced; five counters. Removed as dead code: the list form of
+`source`, unreachable since `submodule_get` prints a list as text, and `_module_pre_uninstall`.
+The engine's knowledge of `backup` became keys, `hook_scripts` and a `configs:` entry for the
+hook config. `backup` goes to 0.2.1, `bitwarden` to 0.1.2; the lib stays at this phase's 0.6.0.
+`ui_press_enter` read `/dev/tty` under `sudo`, which drops `NONINTERACTIVE`, so installers over
+`ssh` ended in error after their work; it returns when no terminal can answer.
+
+`make test` runs 79 tests, 22 new; seven mutants restoring an old behaviour each fail their
+test, and HEAD's `notify.sh` and `ui.sh` fail theirs. `tests/vm/checks/backup.sh` checks what
+`module.yml` declares, owners included, and that nothing in the home is root's. HEAD's tree on
+KDE: the install stops at `bitwarden`, the uninstall ends on `/dev/tty`, `levels.conf` and its
+folder are left. CUPS rewriting `/etc/cups/subscriptions.conf` failed one run, and joins the
+paths `guest-state.sh` excludes. The final tree passes `tests/vm/run.sh backup` on both VMs, 11/11
+checks twice and 0 leftovers but `~/.config/backup`.
+
 **Where the next session starts:**
-1. Review `lib/submodule.sh` against the checklist, its five counters included; proof: an
-   uninstall on a VM removes the declared files and nothing else, which needs the checks of a
-   module with a `core` submodule under `tests/vm/checks/`.
-2. Seed config files from `my-config/` in the same engine, never overwriting an installed one.
-3. Review `setup.sh`, `install.sh` and `uninstall.sh`: its copies of library functions and of
+1. Seed config files from `my-config/` in `_install_submodule_configs`, never overwriting an
+   installed one; every config file a submodule installs is now a `configs:` entry, hook
+   configs included.
+2. Review `setup.sh`, `install.sh` and `uninstall.sh`: its copies of library functions and of
    `_version_compare`, the menus under gum 2 on both VMs, and `uninstall.sh`'s removal of the
    whole `~/.config/system-scripts`, where `color.conf` and `bookmarks.conf` live.
 - This machine's `~/.config/system-scripts/registry` is still `root:root`, waiting for a write
-  as the user or `sudo chown "$USER:" ~/.config/system-scripts/registry`.
+  as the user or `sudo chown "$USER:" ~/.config/system-scripts/registry`. An upgrade of
+  `backup/bitwarden` here leaves `/etc/logrotate.d/user-logs`, its former name, to remove by
+  hand; `hooks.d/pre-backup/btrfs-snapshot.sh`, which no module ships, now survives an uninstall.
 
 ---
 
 ## Decisions
 
+- **An uninstall removes what a submodule declares and nothing else.** Decided on 2026-11-06 in
+  the engine's review: hook scripts by name, declared directories behind the removal guard, and
+  the folders of the home it emptied, never a direct child of the home, as Phase 2 decided for
+  `notifications`. Commits every module phase's checks to a `leftovers` step clear but for `KEEP`.
+- **Everything written in the user's home belongs to the user.** Decided on 2026-11-06: the
+  engine, `registry_init` and `notify_register` write there as the user through `runuser`,
+  missing parents included, instead of writing as root and `chown`ing the last component.
+  Commits every module's VM checks to verifying that nothing in the home belongs to root.
+- **Missing packages are installed without asking; a missing command warns.** Decided on
+  2026-11-06, as `lib/install.sh` already installs `yq` and `gum`: `system_deps` go to
+  `dnf install -y`, and `required_commands` the user installs get a warning, the install going
+  on. Set aside: the `[y/N]` prompt, whose default skipped the packages, and stopping the whole
+  install on a command a single submodule needs to run.
 - **Release detection picks the highest `vX.Y.Z` release instead of dropping module tags.**
   Decided on 2026-11-06 under the task's two options: it also guards against a pre-release or a
   release made by hand, and keeps the release process `docs/core/versioning.md` documents.
@@ -157,6 +203,16 @@ five counters (`((i++))`, `(( ++idx ))`, `(( ++remaining ))`); `setup.sh` keeps 
 
 ## Deviations
 
+- `phase-3-clamav.md`: task added under Refocus, moving the rendering of
+  `download-clamscan.service.tpl` out of the engine into the module and settling whether a system
+  timer starts at install, both found in the engine's review; Phase 3 goes from 9 to 10 tasks.
+- `phase-4-backup.md`: the `vps` review task now also moves its logrotate template and its log
+  folder's removal from its hooks into `module.yml`, which the engine can now do.
+- `modules/backup/module.yml`, Phase 4's, changed here for the engine's keys alone: the files a
+  backup install writes are the same, but for `bitwarden`'s logrotate config, now
+  `/etc/logrotate.d/<user>-backup-bitwarden`.
+- `lib/ui.sh`, `lib/notify.sh` and `lib/registry.sh`, already reviewed, were fixed again here:
+  the harness and the probe showed what reading had not.
 ---
 
 ## Assessment

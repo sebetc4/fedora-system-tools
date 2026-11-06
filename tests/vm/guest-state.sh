@@ -10,7 +10,7 @@
 #
 # Module: tests
 # Requires: none
-# Version: 0.1.0
+# Version: 0.1.1
 #
 # Usage:
 #   sudo bash guest-state.sh <user>
@@ -44,6 +44,8 @@ readonly EXCLUDES=(
     "$TARGET_HOME/.ssh"
     "$TARGET_HOME/.sudo_as_admin_successful"
     "$TARGET_HOME/.viminfo"
+    /etc/cups/subscriptions.conf
+    /etc/cups/subscriptions.conf.O
     /etc/ld.so.cache
     /etc/selinux
     /etc/pki/ca-trust/extracted

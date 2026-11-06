@@ -30,7 +30,7 @@ Register a notification tag. Idempotent — safe to call multiple times.
 - Adds `tag` to `services.conf` (skips if already present)
 - Adds `tag=icon` to `icons.conf` if icon provided (skips if already present)
 - Adds `tag=level` to `levels.conf` if level provided **and not already set** (preserves user customizations)
-- Fixes ownership when running as root via `sudo`
+- Under `sudo`, creates the folder as `SUDO_USER` through `runuser`, its missing parents included, and gives the user the files it writes
 - Reloads `notify-daemon.service` if active
 
 ```bash
@@ -45,7 +45,7 @@ Remove a notification tag from all config files.
 - Removes exact line `tag` from `services.conf`
 - Removes `tag=*` line from `icons.conf`
 - Removes `tag=*` line from `levels.conf`
-- Deletes config files entirely if no active entries remain (only comments/blank lines left)
+- Deletes `services.conf` and `icons.conf` once no active entry remains (only comments/blank lines left), `levels.conf` once it holds nothing but the `default=all` that `notify_register` wrote, and `~/.config/notify-daemon/` once empty
 - Reloads `notify-daemon.service` if active
 
 ```bash

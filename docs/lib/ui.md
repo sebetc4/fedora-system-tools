@@ -20,7 +20,7 @@ ui_confirm "Continue?" && do_thing
 
 ### `ui_press_enter [message]`
 
-Pause for user to read output. Reads from `/dev/tty` (works even with stdin redirected).
+Pause for user to read output. Reads from `/dev/tty` (works even with stdin redirected). Returns at once when `NONINTERACTIVE=1`, which `sudo` does not pass on, or when no terminal can answer, as over `ssh` without `-t`.
 
 ```bash
 ui_press_enter

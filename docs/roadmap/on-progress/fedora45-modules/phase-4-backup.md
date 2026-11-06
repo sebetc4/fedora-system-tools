@@ -38,7 +38,7 @@ Changing the backup strategy itself: which data goes where stays the user's.
 ### VPS
 - [ ] Make `vps` independent of the desktop's SSH agent (`backup-vps.service` hardcodes `%t/gcr/ssh`), deciding with the user between a dedicated key restricted on the server and a configurable socket
   Proof: high, test — the timer runs unattended on the KDE VM against a test SSH target
-- [ ] Review the rest of `vps` against the checklist, its GFS rotation included
+- [ ] Review the rest of `vps` against the checklist, its GFS rotation included, and move its logrotate template and its log folder's removal from its hooks into `module.yml`, the engine installing a `<name>.tpl` as `/etc/logrotate.d/<user>-<name>` and removing declared folders
   Proof: high, test — rotation on a fixture keeps the expected set and deletes nothing else
 
 ### Documentation

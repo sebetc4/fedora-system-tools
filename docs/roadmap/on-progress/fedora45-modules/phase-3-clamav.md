@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/9)
+**Current Status:** 🔴 Not Started (0% — 0/10)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -38,6 +38,8 @@ Threats ClamAV cannot see, such as malicious npm or pip packages and browser ext
   Proof: medium, a measure — no `clamd` process while idle, and a file arriving meanwhile is scanned
 - [ ] Add community signatures with Fedora's `clamav-unofficial-sigs`, after checking its sources and its false positives on the user's files
   Proof: medium, a scan of the user's downloads with them reports no false positive
+- [ ] Move the rendering of `download-clamscan.service.tpl` out of `lib/submodule.sh`, which special-cases it, into the clamav module, and settle whether a system timer starts at install: the engine enables `weekly-clamscan.timer` without `--now`, so it waits for the next boot
+  Proof: medium, test — after a VM install, the unit's `ReadWritePaths=` lists the watched folders, `git grep download-clamscan lib/` finds nothing, and the timer is in the state decided
 
 ### USB
 - [ ] Find why all 11 insertions since 2026-10-07 timed out, then make `usb-clamscan` independent of the desktop's auto-mount, mounting read-only itself when nothing else has

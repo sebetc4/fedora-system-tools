@@ -1,7 +1,7 @@
 # modules/backup/module.yml
 name: backup
-version: 0.2.0
-min_lib_version: 0.5.0
+version: 0.2.1
+min_lib_version: 0.6.0
 description: "Backup scripts (system, HDD, Bitwarden, VPS)"
 type: system
 
@@ -28,9 +28,10 @@ submodules:
       - source: local/config.yml
         dest: ~/.config/backup/local.yml
         no_overwrite: true
-    hooks:
-      install: local/hooks.d
-      hooks_config: local/hooks-config
+      - source: local/hooks-config/btrfs-save-structure.yml
+        dest: ~/.config/backup/hooks/btrfs-save-structure.yml
+        no_overwrite: true
+    hook_scripts: local/hooks.d
     system_deps:
       - yq
       - rsync
@@ -76,13 +77,13 @@ submodules:
         level: important
 
   bitwarden:
-    version: 0.1.1
+    version: 0.1.2
     description: "Bitwarden vault backup"
     source: bitwarden/backup-bitwarden.sh
     bin_name: backup-bitwarden
     deps:
       - core
-    logrotate: bitwarden/logrotate/user-logs.tpl
+    logrotate: bitwarden/logrotate/backup-bitwarden.tpl
     configs:
       - source: bitwarden/config.yml
         dest: ~/.config/backup/bitwarden.yml

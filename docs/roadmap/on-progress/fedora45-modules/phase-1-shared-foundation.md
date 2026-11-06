@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (63% — 5/8)
+**Current Status:** 🟡 In Progress (75% — 6/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -26,7 +26,7 @@ The modules themselves (phases 2 to 6).
 ### Library
 - [x] Review each `lib/` file against the checklist, with `bats` tests for its pure functions (`registry.sh`, `submodule_sort_uninstall`, `yaml.sh`, `validate.sh`, `format.sh`)
   Proof: medium, test — the registry and dependency-order tests, each watched failing then passing
-- [ ] Review `lib/submodule.sh`, the install and uninstall engine, against the checklist: every removal stays within what the module declared
+- [x] Review `lib/submodule.sh`, the install and uninstall engine, against the checklist: every removal stays within what the module declared
   Proof: high, test — an uninstall on a VM removes the declared files and nothing else
 - [x] Replace `eval echo ~user` in `lib/notify.sh` and `uninstall.sh` with `getent passwd`
   Proof: low, check — `git grep` finds no `eval` left

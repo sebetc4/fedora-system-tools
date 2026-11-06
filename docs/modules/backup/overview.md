@@ -25,7 +25,8 @@ modules/backup/
 │   └── config.yml                      → ~/.config/backup/hdd-both.yml
 ├── bitwarden/                          Bitwarden vault export
 │   ├── backup-bitwarden.sh             → /usr/local/bin/backup-bitwarden
-│   └── config.yml                      → ~/.config/backup/bitwarden.yml
+│   ├── config.yml                      → ~/.config/backup/bitwarden.yml
+│   └── logrotate/backup-bitwarden.tpl  → /etc/logrotate.d/<user>-backup-bitwarden
 └── vps/                                VPS off-site backup (user-level)
     ├── backup-vps.sh                   → ~/.local/bin/backup-vps
     ├── config.yml                      → ~/.config/backup/vps.yml

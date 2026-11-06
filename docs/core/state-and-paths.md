@@ -83,7 +83,7 @@ installed=2026-02-15 10:30:46
 | `backup/hdd-both.yml` | YAML | backup/hdd-to-both-hdd | yes |
 | `backup/bitwarden.yml` | YAML | backup/bitwarden | yes |
 | `backup/vps.yml` | YAML | backup/vps | yes |
-| `backup/hooks/*.yml` | YAML | backup/local | yes |
+| `backup/hooks/btrfs-save-structure.yml` | YAML | backup/local | yes |
 | `notify-daemon/services.conf` | Text list | notifications | dynamic |
 | `notify-daemon/icons.conf` | Key=value | notifications | dynamic |
 | `torrent/container.conf` | Shell vars | torrent | — |
@@ -313,11 +313,11 @@ What is removed vs preserved when uninstalling each component.
 
 ### Submodule engine (`lib/submodule.sh`)
 
-The engine automatically removes: binaries, systemd units, logrotate configs,
-created directories, notification registrations, and hook scripts.
-
-Configs installed via `configs:` with `no_overwrite: true` are **preserved**.
-The engine displays a yellow summary of preserved config paths at uninstall.
+The engine removes what a submodule declares and nothing else: binaries, systemd units, logrotate
+configs, declared directories that pass its removal guard, notification registrations, the hook
+scripts the module ships, and the folders of the user's home they needed once empty. Config files
+installed via `configs:` are **preserved**, and listed at the end of the uninstall. The rules are
+in [submodule.sh](../lib/submodule.md), What An Uninstall Removes.
 
 ### Per-module detail
 
@@ -333,9 +333,10 @@ The engine displays a yellow summary of preserved config paths at uninstall.
 | Installed | Removed | Preserved |
 |-----------|---------|----------|
 | `/usr/local/bin/backup-local` | yes | |
-| `/usr/local/lib/system-scripts/hooks.d/pre-backup/*.sh` | yes | |
+| `/usr/local/lib/system-scripts/hooks.d/pre-backup/btrfs-save-structure.sh` | yes | |
+| Other scripts in `hooks.d/pre-backup/` (the user's) | | **yes** |
 | `~/.config/backup/local.yml` | | **yes** |
-| `~/.config/backup/hooks/*.yml` | | **yes** |
+| `~/.config/backup/hooks/btrfs-save-structure.yml` | | **yes** |
 
 #### backup/hdd
 

@@ -39,11 +39,6 @@ source "$LIB_DIR/ui.sh"
 
 check_root
 
-# Optional: pre-uninstall cleanup
-# _module_pre_uninstall() {
-#     # Custom cleanup before submodule uninstall loop
-# }
-
 # Optional: post-uninstall messages
 # _module_post_uninstall() {
 #     local module_name="$1"

@@ -59,8 +59,12 @@ notify_register() {
     local icons_file="$notify_dir/icons.conf"
     local levels_file="$notify_dir/levels.conf"
 
-    # Create directory if needed
-    mkdir -p "$notify_dir"
+    # Create directory if needed: under sudo, as the user, its missing parents included
+    if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
+        runuser -u "$SUDO_USER" -- mkdir -p "$notify_dir"
+    else
+        mkdir -p "$notify_dir"
+    fi
 
     # --- services.conf ---
     if [[ -f "$services_file" ]]; then
@@ -155,8 +159,10 @@ _notify_reload_daemon() {
 # Usage: notify_unregister <tag>
 #
 # - Removes tag from services.conf
-# - Removes tag mapping from icons.conf
-# - Deletes files if no active entries remain
+# - Removes tag mapping from icons.conf and levels.conf
+# - Deletes each file once no entry of its own remains, levels.conf once it
+#   holds nothing but the default=all notify_register wrote, and the folder
+#   once empty
 notify_unregister() {
     local tag="$1"
     local target_home
@@ -187,7 +193,13 @@ notify_unregister() {
     # --- levels.conf ---
     if [[ -f "$levels_file" ]]; then
         sed -i "/^${tag}=/d" "$levels_file"
+        # Remove file if nothing but the default notify_register wrote remains
+        if ! grep -qvE '^(#|$|default=all$)' "$levels_file" 2>/dev/null; then
+            rm -f "$levels_file"
+        fi
     fi
+
+    rmdir "$notify_dir" 2>/dev/null || true
 
     # Reload notify-daemon service if it exists and is active
     _notify_reload_daemon
