@@ -585,7 +585,7 @@ submodule_install() {
         _submodule_owner_run "$dir_path" chmod "$dir_mode" "$dir_path"
     done
 
-    # --- Install configs (no_overwrite) ---
+    # --- Install configs (never overwritten, seeded from my-config/) ---
     _install_submodule_configs "$module_dir" "$submodule" "$module_yml"
 
     # --- Install hook scripts (hook_scripts) ---
@@ -1131,28 +1131,44 @@ _install_service_template() {
     fi
 }
 
-# Install config files for a submodule (with no_overwrite support)
+# Install config files for a submodule. An installed config is never
+# overwritten. A missing one comes from the user's copy when there is one,
+# kept in my-config/ at the checkout's root and laid out like the repository
+# (my-config/modules/backup/vps/config.yml for modules/backup/vps/config.yml),
+# or MY_CONFIG_DIR; from the module's default otherwise.
 # Args: module_dir submodule_name module_yml
 _install_submodule_configs() {
     local module_dir="$1"
     local submodule="$2"
     local module_yml="$3"
 
-    local config_count i src dest no_overwrite
+    local copies_dir
+    copies_dir="${MY_CONFIG_DIR:-$(dirname "$(dirname "$module_dir")")/my-config}/modules/$(basename "$module_dir")"
+
+    local config_count i src dest copy
     config_count=$(yq -r ".submodules.\"$submodule\".configs // [] | length" "$module_yml")
     for (( i = 0; i < config_count; i++ )); do
         src=$(yq -r ".submodules.\"$submodule\".configs[$i].source" "$module_yml")
         dest=$(yq -r ".submodules.\"$submodule\".configs[$i].dest" "$module_yml")
-        no_overwrite=$(yq -r ".submodules.\"$submodule\".configs[$i].no_overwrite // false" "$module_yml")
         dest=$(_submodule_expand_path "$dest")
+        copy="$copies_dir/$src"
 
-        if [[ "$no_overwrite" == "true" && -f "$dest" ]]; then
-            _sub_info "Config already exists: $dest"
+        if [[ -f "$dest" ]]; then
+            if [[ -f "$copy" ]] && ! cmp -s "$copy" "$dest"; then
+                _sub_info "Config already exists: $dest (differs from $copy)"
+            else
+                _sub_info "Config already exists: $dest"
+            fi
             continue
         fi
         _submodule_owner_run "$dest" mkdir -p "$(dirname "$dest")"
-        _submodule_owner_run "$dest" install -m 644 "$module_dir/$src" "$dest"
-        _sub_success "Created: $dest"
+        if [[ -f "$copy" ]]; then
+            _submodule_owner_run "$dest" install -m 644 "$copy" "$dest"
+            _sub_success "Created: $dest (from my-config)"
+        else
+            _submodule_owner_run "$dest" install -m 644 "$module_dir/$src" "$dest"
+            _sub_success "Created: $dest"
+        fi
     done
 }
 

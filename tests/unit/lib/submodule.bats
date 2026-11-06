@@ -22,7 +22,9 @@ setup() {
     _real_home="$BATS_TEST_TMPDIR/home"
     mkdir -p "$_real_home"
 
-    MODULE_DIR="$BATS_TEST_TMPDIR/module"
+    # A checkout of the test's, its my-config/ beside modules/
+    CHECKOUT="$BATS_TEST_TMPDIR/checkout"
+    MODULE_DIR="$CHECKOUT/modules/demo"
     MODULE_YML="$MODULE_DIR/module.yml"
     mkdir -p "$MODULE_DIR"
     cat > "$MODULE_YML" <<'YAML'
@@ -60,7 +62,8 @@ submodules:
     configs:
       - source: config.yml
         dest: ~/.config/demo/demo.yml
-        no_overwrite: true
+      - source: hooks-config/check.yml
+        dest: ~/.config/demo/hooks/check.yml
   broken-hook:
     version: 0.1.0
     hooks:
@@ -236,13 +239,47 @@ assert_order() {
     [[ ! -e "$SUBMODULE_HOOKS_DIR" ]] || { echo "hooks.d kept: $(find "$SUBMODULE_HOOKS_DIR")"; return 1; }
 }
 
-@test "_install_submodule_configs: a second install keeps an edited config" {
+# Write the module's two default configs
+write_default_configs() {
+    mkdir -p "$MODULE_DIR/hooks-config"
     printf 'value: default\n' > "$MODULE_DIR/config.yml"
+    printf 'hook: default\n' > "$MODULE_DIR/hooks-config/check.yml"
+}
+
+@test "_install_submodule_configs: without a copy, the module's default" {
+    write_default_configs
     _install_submodule_configs "$MODULE_DIR" configured "$MODULE_YML" > /dev/null
-    expect "first install" "$(cat "$_real_home/.config/demo/demo.yml")" "value: default"
-    printf 'value: mine\n' > "$_real_home/.config/demo/demo.yml"
+    expect demo.yml "$(cat "$_real_home/.config/demo/demo.yml")" "value: default"
+    expect check.yml "$(cat "$_real_home/.config/demo/hooks/check.yml")" "hook: default"
+}
+
+@test "_install_submodule_configs: the user's copy in my-config/ comes before the default" {
+    write_default_configs
+    mkdir -p "$CHECKOUT/my-config/modules/demo/hooks-config"
+    printf 'hook: mine\n' > "$CHECKOUT/my-config/modules/demo/hooks-config/check.yml"
+    run _install_submodule_configs "$MODULE_DIR" configured "$MODULE_YML"
+    expect "check.yml, from the copy" "$(cat "$_real_home/.config/demo/hooks/check.yml")" "hook: mine"
+    expect "demo.yml, no copy" "$(cat "$_real_home/.config/demo/demo.yml")" "value: default"
+    [[ "$output" == *"check.yml (from my-config)"* ]] || { echo "the copy is not named: $output"; return 1; }
+}
+
+@test "_install_submodule_configs: MY_CONFIG_DIR points at the copies elsewhere" {
+    write_default_configs
+    mkdir -p "$BATS_TEST_TMPDIR/copies/modules/demo"
+    printf 'value: elsewhere\n' > "$BATS_TEST_TMPDIR/copies/modules/demo/config.yml"
+    MY_CONFIG_DIR="$BATS_TEST_TMPDIR/copies" _install_submodule_configs "$MODULE_DIR" configured "$MODULE_YML" > /dev/null
+    expect demo.yml "$(cat "$_real_home/.config/demo/demo.yml")" "value: elsewhere"
+}
+
+@test "_install_submodule_configs: an installed config is never overwritten" {
+    write_default_configs
     _install_submodule_configs "$MODULE_DIR" configured "$MODULE_YML" > /dev/null
-    expect "second install" "$(cat "$_real_home/.config/demo/demo.yml")" "value: mine"
+    printf 'value: edited\n' > "$_real_home/.config/demo/demo.yml"
+    mkdir -p "$CHECKOUT/my-config/modules/demo"
+    printf 'value: mine\n' > "$CHECKOUT/my-config/modules/demo/config.yml"
+    run _install_submodule_configs "$MODULE_DIR" configured "$MODULE_YML"
+    expect "second install" "$(cat "$_real_home/.config/demo/demo.yml")" "value: edited"
+    [[ "$output" == *"differs from"*"my-config/modules/demo/config.yml"* ]] || { echo "the difference is not said: $output"; return 1; }
     run _show_preserved_configs configured "$MODULE_YML"
     [[ "$output" == *"$_real_home/.config/demo/demo.yml"* ]] || { echo "not shown as kept: $output"; return 1; }
 }

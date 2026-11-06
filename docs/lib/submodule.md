@@ -41,7 +41,7 @@ What `submodule_install` does with each key of a submodule in `module.yml`, in t
 | `hooks.install` / `hooks.uninstall` | the script runs as root; a declared script missing stops the install | the script runs as root, after the units and binary are gone |
 | `services` / `timers` | installed in the unit directory, a `.tpl` rendered; timers enabled, services enabled with `--now` when the submodule has no timer | stopped, disabled when enabled, a timer's persistent stamp cleaned, files removed |
 | `dirs` | created with their `mode` (755 by default) | removed with their content, deepest first, when the removal guard allows |
-| `configs` | copied mode 644; with `no_overwrite: true`, an existing file is left | kept, and listed at the end of the uninstall |
+| `configs` | a missing file copied mode 644 from the user's copy in `my-config/` when there is one, from the module's default otherwise; an installed file is never overwritten, and one that differs from its copy is said | kept, and listed at the end of the uninstall |
 | `hook_scripts` | each `<event>/<name>.sh` of the folder installed mode 755 to `hooks.d/<event>/` | those files removed, then each folder left empty |
 | `logrotate` | installed to `/etc/logrotate.d/<name>`; a `.tpl` rendered to `/etc/logrotate.d/<user>-<name>` | removed |
 | `notifications` | each `tag` registered with its `icon` and `level` | each tag unregistered |
@@ -51,6 +51,11 @@ A template (`.tpl`) has `__HOME__` and `__USER__` replaced by the user's home an
 template unit (`name@.service`) is never enabled: its instances are started by their trigger and
 stopped at the uninstall. `hooks.d` is `/usr/local/lib/system-scripts/hooks.d`, or
 `SUBMODULE_HOOKS_DIR` when set.
+
+A config's copy sits in `my-config/` at the root of the checkout the install runs from, at the
+path of the default it replaces: `my-config/modules/backup/vps/config.yml` for
+`modules/backup/vps/config.yml`. `MY_CONFIG_DIR` points elsewhere. The rule behind it is in
+[Conventions](../core/conventions.md), Personal settings.
 
 ---
 
@@ -189,7 +194,7 @@ mapfile -t deps < <(submodule_get_array "quarantine" "deps" "$MODULE_YML")
 | `_sub_success` / `_sub_info` / `_sub_warn` / `_sub_error` | Indented messages |
 | `_show_preserved_configs` | List the config files an uninstall leaves |
 | `_install_service_template` | Render and install a `.tpl` unit |
-| `_install_submodule_configs` | Install the `configs:` files |
+| `_install_submodule_configs` | Install the `configs:` files, from `my-config/` first |
 | `_install_submodule_hooks` / `_uninstall_submodule_hooks` | Install and remove the `hook_scripts:` files |
 
 ---

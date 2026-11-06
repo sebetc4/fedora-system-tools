@@ -27,10 +27,8 @@ submodules:
     configs:
       - source: local/config.yml
         dest: ~/.config/backup/local.yml
-        no_overwrite: true
       - source: local/hooks-config/btrfs-save-structure.yml
         dest: ~/.config/backup/hooks/btrfs-save-structure.yml
-        no_overwrite: true
     hook_scripts: local/hooks.d
     system_deps:
       - yq
@@ -50,7 +48,6 @@ submodules:
     configs:
       - source: hdd-to-hdd/config.yml
         dest: ~/.config/backup/hdd.yml
-        no_overwrite: true
     system_deps:
       - yq
     notifications:
@@ -68,7 +65,6 @@ submodules:
     configs:
       - source: hdd-to-both-hdd/config.yml
         dest: ~/.config/backup/hdd-both.yml
-        no_overwrite: true
     system_deps:
       - yq
     notifications:
@@ -87,7 +83,6 @@ submodules:
     configs:
       - source: bitwarden/config.yml
         dest: ~/.config/backup/bitwarden.yml
-        no_overwrite: true
     required_commands:
       - name: bw
         install_hint: "npm install -g @bitwarden/cli"
@@ -114,7 +109,6 @@ submodules:
     configs:
       - source: vps/config.yml
         dest: ~/.config/backup/vps.yml
-        no_overwrite: true
     required_commands:
       - name: ssh
         install_hint: "sudo dnf install openssh-clients"

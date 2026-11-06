@@ -48,7 +48,7 @@ Threats ClamAV cannot see, such as malicious npm or pip packages and browser ext
 ### End To End
 - [ ] Test the whole chain with EICAR on both VMs: watcher, quarantine, notification, then the `quarantine` commands
   Proof: high, test — EICAR reaches the quarantine, the notification shows, and `quarantine` lists and deletes it
-- [ ] Review the remaining scripts, units and SELinux rules against the checklist, and update `docs/modules/clamav.md`
+- [ ] Review the remaining scripts, units and SELinux rules against the checklist, `clamav.conf` included, which the core hook installs and which a copy in `my-config/` should seed as it seeds a `configs:` entry, and update `docs/modules/clamav.md`
   Proof: medium, the checklist filled in the report
 
 ---

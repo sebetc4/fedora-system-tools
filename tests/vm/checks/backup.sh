@@ -12,6 +12,9 @@
 # Version: 0.1.0
 # =============================================================================
 
+CHECKOUT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+readonly CHECKOUT
+
 # What the uninstall keeps: the user's config files, as the engine says
 # shellcheck disable=SC2034  # read by guest-checks.sh
 KEEP=("$HOME/.config/backup")
@@ -98,4 +101,16 @@ check_nothing_of_root_in_home() {
     local found
     found=$(find "$HOME" -xdev -user root -print -quit 2>/dev/null)
     [[ -z "$found" ]] || fail "$found belongs to root"
+}
+
+# hdd and the btrfs hook config have a copy in my-config/, the harness's
+# fixture; local has none and gets its default
+check_configs_seeded() {
+    cmp -s "$CHECKOUT/my-config/modules/backup/hdd-to-hdd/config.yml" "$HOME/.config/backup/hdd.yml" \
+        || fail "hdd.yml is not the copy kept in my-config/"
+    cmp -s "$CHECKOUT/my-config/modules/backup/local/hooks-config/btrfs-save-structure.yml" \
+        "$HOME/.config/backup/hooks/btrfs-save-structure.yml" \
+        || fail "btrfs-save-structure.yml is not the copy kept in my-config/"
+    cmp -s "$CHECKOUT/modules/backup/local/config.yml" "$HOME/.config/backup/local.yml" \
+        || fail "local.yml is not the module's default"
 }

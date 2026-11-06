@@ -25,7 +25,7 @@ with Fedora's own ShellCheck and bats.
 |---|---|
 | `reset` | shuts the VM down, restores its `clean-install` snapshot, starts it |
 | `boot` | waits for its address and for SSH |
-| `copy` | copies the files git tracks or sees as new, from the working tree, to `~/fedora-system-tools-test` |
+| `copy` | copies the files git tracks or sees as new, from the working tree, to `~/fedora-system-tools-test`, with `tests/vm/my-config-fixture/` as its `my-config/` |
 | `prereqs` | installs the packages of `tests/vm/prereqs.list` |
 | `lib` | `make install-lib` |
 | `install`, `checks` | `make install-<target>`, then the module's checks |
@@ -51,6 +51,10 @@ function of the file in the VM, as the VM's user, in a shell of its own under
 `set -euo pipefail`: a check passes when it returns 0, and `fail "<reason>"` ends it with the
 reason the report shows. The file also sets `KEEP`, the glob patterns of what the uninstall
 keeps on purpose, such as the user's config.
+
+`tests/vm/my-config-fixture/` stands for the user's `my-config/`: generic copies of module
+configs, each marked by its first line, so that a check can tell an installed copy from a
+default. The host's own `my-config/` never reaches a VM.
 
 ### Leftovers
 

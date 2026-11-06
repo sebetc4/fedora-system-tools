@@ -316,7 +316,8 @@ What is removed vs preserved when uninstalling each component.
 The engine removes what a submodule declares and nothing else: binaries, systemd units, logrotate
 configs, declared directories that pass its removal guard, notification registrations, the hook
 scripts the module ships, and the folders of the user's home they needed once empty. Config files
-installed via `configs:` are **preserved**, and listed at the end of the uninstall. The rules are
+installed via `configs:` are **preserved**, and listed at the end of the uninstall; an install
+never overwrites one, and seeds a missing one from its copy in `my-config/`. The rules are
 in [submodule.sh](../lib/submodule.md), What An Uninstall Removes.
 
 ### Per-module detail

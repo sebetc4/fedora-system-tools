@@ -184,7 +184,9 @@ The repository is public and holds generic defaults only, such as the `my-vps` p
 (`~/.config/…`, `/etc/…`), which an install or upgrade never overwrites. Copies of those files
 are kept in `my-config/` at the checkout's root, ignored by git, laid out like the repository's
 tree: `my-config/modules/backup/vps/config.yml` is the user's copy of
-`modules/backup/vps/config.yml`, kept to restore it after a reinstall. The postinstall
+`modules/backup/vps/config.yml`. An install of a submodule whose config file is missing installs
+that copy instead of the default, which restores the user's values after a reinstall; a copy
+then differing from the installed file is said at the next install, never copied over it. The postinstall
 `personal` profile holds only choices fit to publish: packages, Flatpaks, desktop settings.
 
 No tracked file holds:

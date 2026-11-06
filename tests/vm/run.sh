@@ -2,9 +2,10 @@
 # =============================================================================
 # RUN - Run a module's install cycle on the Fedora test VMs
 # =============================================================================
-# For each test VM: restores its snapshot, copies the checkout, installs the
-# prerequisites and the library, installs the module twice with its checks
-# after each install, uninstalls it, and compares the VM before and after.
+# For each test VM: restores its snapshot, copies the checkout with
+# my-config-fixture/ as its my-config/, installs the prerequisites and the
+# library, installs the module twice with its checks after each install,
+# uninstalls it, and compares the VM before and after.
 # Prints one table per desktop and exits 1 when any step failed.
 #
 # Acts only on the VMs listed in vms.conf, never on the host, and never
@@ -12,7 +13,7 @@
 #
 # Module: tests
 # Requires: core
-# Version: 0.1.0
+# Version: 0.2.0
 #
 # Usage:
 #   tests/vm/run.sh [OPTIONS] <module>[/<submodule>]
@@ -52,6 +53,8 @@ readonly VM_CONF="${VM_CONF:-$SCRIPT_DIR/vms.conf}"
 readonly VM_SNAPSHOT="${VM_SNAPSHOT:-clean-install}"
 readonly PREREQS_FILE="$SCRIPT_DIR/prereqs.list"
 readonly GUEST_DIR="fedora-system-tools-test"   # in the VM user's home
+# Generic copies standing for the user's, never the host's own my-config/
+readonly MY_CONFIG_FIXTURE="tests/vm/my-config-fixture"
 readonly BOOT_TIMEOUT=300
 readonly SHUTDOWN_TIMEOUT=120
 
@@ -164,7 +167,8 @@ wait_for_ssh() {
     return 1
 }
 
-# Copy the files git tracks or sees as new, as they are in the working tree
+# Copy the files git tracks or sees as new, as they are in the working tree,
+# and the fixture as the checkout's my-config/
 # shellcheck disable=SC2329  # invoked through step
 copy_checkout() {
     local address="$1"
@@ -177,7 +181,8 @@ copy_checkout() {
                 fi
             done \
             | tar --null -T - -czf -
-    ) | vm_ssh "$address" "rm -rf ~/$GUEST_DIR && mkdir ~/$GUEST_DIR && tar -xzf - -C ~/$GUEST_DIR"
+    ) | vm_ssh "$address" "rm -rf ~/$GUEST_DIR && mkdir ~/$GUEST_DIR && tar -xzf - -C ~/$GUEST_DIR \
+        && { [[ ! -d ~/$GUEST_DIR/$MY_CONFIG_FIXTURE ]] || cp -a ~/$GUEST_DIR/$MY_CONFIG_FIXTURE ~/$GUEST_DIR/my-config; }"
 }
 
 # shellcheck disable=SC2329  # invoked through step

@@ -130,50 +130,50 @@ five counters (`((i++))`, `(( ++idx ))`, `(( ++remaining ))`); `setup.sh` keeps 
 `has_gum`, `ui_choose`, `ui_confirm`, `ui_header`, `error`, `warn`, `info`, `success`, of
 `_version_compare` and of the color defaults, which `color_reload` now resets alone.
 
-Session resumed the same day on `lib/submodule.sh`, the engine. Its removals went beyond what
-a module declares: `backup/local`'s uninstall deleted `hooks.d/pre-backup` and `post-backup`
-whole, where `docs/modules/backup/local.md` invites user hooks and where this machine holds
-`btrfs-snapshot.sh`, which no module ships; a declared directory went by `rm -rf` whatever its
-path; `notify_unregister` left `levels.conf` and its folder. Removals now follow the first
-decision below. The install wrote in the home as root: `install -d -o` owns the last folder
-alone, so `vps` made `~/.local/log` root's, and `registry_init` and `notify_register` did the
-same with a missing `~/.config`. In a `fedora:45` container, for a user without `~/.config`,
-HEAD's engine leaves `~/.local`, `~/.local/log`, `~/.config` and `~/.config/probe` to root, the
-new one nothing.
+Session resumed the same day on `lib/submodule.sh`. Its removals went beyond what a module
+declares: `backup/local`'s uninstall deleted `hooks.d/pre-backup` whole, where
+`docs/modules/backup/local.md` invites user hooks and this machine holds `btrfs-snapshot.sh`; a
+declared directory went by `rm -rf` whatever its path; `notify_unregister` left `levels.conf`.
+Removals now follow the first decision below. The install wrote in the home as root
+(`install -d -o` owns the last folder alone): in a `fedora:45` container, for a user without
+`~/.config`, HEAD's engine leaves `~/.local`, `~/.local/log`, `~/.config` and `~/.config/probe` to
+root, the new one nothing.
 
-Other defects fixed: `system_deps` checked with `command -v`, which never finds `inotify-tools`,
-behind a `[y/N]` whose default skipped them; a missing `bw` stopping `make install-backup` before
-`vps`; the deps protection reading a typeless dependent with the removed submodule's type;
-global context variables, which a dependency's install overwrote; a declared hook file missing
-skipped silently; templates' logrotate configs named after the file, so `bitwarden`'s and
-`vps`'s `user-logs.tpl` collided, now `<user>-<name>` as `docs/core/logrotate.md` said; unknown
-options ignored; unit failures silenced; five counters. Dead code went: the list form of `source`,
-unreachable, and `_module_pre_uninstall`.
-The engine's knowledge of `backup` became keys, `hook_scripts` and a `configs:` entry for the
-hook config. `backup` goes to 0.2.1, `bitwarden` to 0.1.2; the lib stays at this phase's 0.6.0.
-`ui_press_enter` read `/dev/tty` under `sudo`, which drops `NONINTERACTIVE`, so installers over
-`ssh` ended in error after their work; it returns when no terminal can answer.
+Also fixed: `system_deps` checked with `command -v`, which never finds `inotify-tools`, behind a
+`[y/N]` skipping them; a missing `bw` stopping `make install-backup` before `vps`; the deps
+protection reading a typeless dependent with the removed submodule's type; global context
+variables a dependency's install overwrote; missing hook files skipped; templates' logrotate
+names colliding (`user-logs.tpl` twice), now `<user>-<name>`; unknown options ignored; silenced
+unit failures; counters; `ui_press_enter` failing on `/dev/tty` under `sudo` over `ssh`. Dead
+code went: the list form of `source`, unreachable, and `_module_pre_uninstall`. `backup`'s
+special cases became keys; `backup` goes to 0.2.1, `bitwarden` to 0.1.2, the lib stays 0.6.0.
 
 `make test` runs 79 tests, 22 new; seven mutants restoring an old behaviour each fail their
-test, and HEAD's `notify.sh` and `ui.sh` fail theirs. `tests/vm/checks/backup.sh` checks what
-`module.yml` declares, owners included, and that nothing in the home is root's. HEAD's tree on
-KDE: the install stops at `bitwarden`, the uninstall ends on `/dev/tty`, `levels.conf` and its
-folder are left. CUPS rewriting `/etc/cups/subscriptions.conf` failed one run, and joins the
-paths `guest-state.sh` excludes. The final tree passes `tests/vm/run.sh backup` on both VMs, 11/11
-checks twice and 0 leftovers but `~/.config/backup`. CI, root without `USER`, failed the hook test:
-the user now comes from `id -un`, and `make test` passes in `fedora:45`.
+test, as do HEAD's `notify.sh` and `ui.sh`. `tests/vm/checks/backup.sh` checks the declared
+files, their owners, and that nothing in the home is root's. HEAD's tree on KDE: the install
+stops at `bitwarden`, the uninstall ends on `/dev/tty`, `levels.conf` is left. CUPS rewriting its
+`subscriptions.conf` failed one run; `guest-state.sh` now excludes it. The final tree passes
+`tests/vm/run.sh backup` on both VMs, 0 leftovers but `~/.config/backup`. CI, root without
+`USER`, failed the hook test: the user now comes from `id -un`.
+
+Seeding. A missing config now comes from its copy in `my-config/`, at its default's path, or
+`MY_CONFIG_DIR`, else from the default; an installed one is never overwritten, so
+`no_overwrite` went from its six entries, and one differing from its copy is said. Three new
+tests failed first: the copy, the override, an entry without `no_overwrite` overwritten. The
+harness copies `tests/vm/my-config-fixture/` as the guest's `my-config/`, and
+`check_configs_seeded` passes on both VMs, 12/12; on each, an edited `hdd.yml` then survives
+`make install-backup` and `make reinstall-backup`. This machine's copies, of 2026-03-11, all
+differ from the installed files, `local`'s still under the former `system/`: a reinstall would
+bring old values back.
 
 **Where the next session starts:**
-1. Seed config files from `my-config/` in `_install_submodule_configs`, never overwriting an
-   installed one; every config file a submodule installs is now a `configs:` entry, hook
-   configs included.
-2. Review `setup.sh`, `install.sh` and `uninstall.sh`: its copies of library functions and of
+1. Review `setup.sh`, `install.sh` and `uninstall.sh`: its copies of library functions and of
    `_version_compare`, the menus under gum 2 on both VMs, and `uninstall.sh`'s removal of the
-   whole `~/.config/system-scripts`, where `color.conf` and `bookmarks.conf` live.
-- This machine's `~/.config/system-scripts/registry` is still `root:root`, waiting for a write
-  as the user or `sudo chown "$USER:" ~/.config/system-scripts/registry`. An upgrade of
-  `backup/bitwarden` here leaves `/etc/logrotate.d/user-logs`, its former name, to remove by
-  hand; `hooks.d/pre-backup/btrfs-snapshot.sh`, which no module ships, now survives an uninstall.
+   whole `~/.config/system-scripts`, where `color.conf` and `bookmarks.conf` live. Then close
+   the phase.
+- This machine's `~/.config/system-scripts/registry` is still `root:root` (`sudo chown "$USER:"`
+  it). An upgrade of `backup/bitwarden` leaves `/etc/logrotate.d/user-logs`, to remove by hand.
+  Refreshing `my-config/` from the installed configs is the user's call.
 
 ---
 
@@ -188,10 +188,8 @@ the user now comes from `id -un`, and `make test` passes in `fedora:45`.
   missing parents included, instead of writing as root and `chown`ing the last component.
   Commits every module's VM checks to verifying that nothing in the home belongs to root.
 - **Missing packages are installed without asking; a missing command warns.** Decided on
-  2026-11-06, as `lib/install.sh` already installs `yq` and `gum`: `system_deps` go to
-  `dnf install -y`, and `required_commands` the user installs get a warning, the install going
-  on. Set aside: the `[y/N]` prompt, whose default skipped the packages, and stopping the whole
-  install on a command a single submodule needs to run.
+  2026-11-06, as `lib/install.sh` installs `yq` and `gum`. Set aside: the `[y/N]` prompt, whose
+  default skipped the packages, and stopping the install on a command one submodule needs.
 - **Release detection picks the highest `vX.Y.Z` release instead of dropping module tags.**
   Decided on 2026-11-06 under the task's two options: it also guards against a pre-release or a
   release made by hand, and keeps the release process `docs/core/versioning.md` documents.
@@ -214,6 +212,8 @@ the user now comes from `id -un`, and `make test` passes in `fedora:45`.
   `/etc/logrotate.d/<user>-backup-bitwarden`.
 - `lib/ui.sh`, `lib/notify.sh` and `lib/registry.sh`, already reviewed, were fixed again here:
   the harness and the probe showed what reading had not.
+- `phase-3-clamav.md`: its review task now names `clamav.conf`, which the core hook installs and
+  `my-config/` should seed like a `configs:` entry.
 ---
 
 ## Assessment

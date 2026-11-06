@@ -46,10 +46,10 @@ type: system  # system (root) or user (no root)
 #     #   - core                         # Auto-installed before this submodule
 #     services: []                       # systemd service files, .tpl rendered (optional)
 #     timers: []                         # systemd timer files (optional)
-#     configs: []                        # Config files to install, never removed (optional)
+#     configs: []                        # Config files: never overwritten nor removed,
+#     #                                  # a copy in my-config/ first (optional)
 #     #   - source: config.yml
 #     #     dest: ~/.config/app/config.yml
-#     #     no_overwrite: true           # An existing file is left as it is
 #     required_commands: []              # Commands not from dnf: a warning when missing (optional)
 #     #   - bw                           # Simple form (name only)
 #     #   - name: bw                     # Object form (with install hint)
