@@ -1,0 +1,14 @@
+# =============================================================================
+# PREREQS.LIST - Packages installed in a test VM before the library
+# =============================================================================
+# One Fedora package per line. These are the manual steps a fresh Fedora
+# needs before `make install-lib` works today; a line goes once the
+# installers take care of it.
+# =============================================================================
+
+# Runs the install targets; not on Fedora Workstation by default
+make
+# Every module installer runs `check_deps yq`; lib/install.sh does not install it
+yq
+# lib/install.sh asks before installing gum, from a third-party repository
+gum

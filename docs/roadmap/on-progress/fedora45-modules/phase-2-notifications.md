@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/5)
+**Current Status:** 🔴 Not Started (0% — 0/6)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -31,6 +31,8 @@ The notification tags other modules register, reviewed with those modules.
   Proof: medium, a measure of the log's growth over a day's messages, before and after
 - [ ] Set with the user the default notification level of each tag
   Proof: low, the user's review
+- [ ] Make the uninstall remove what the install created and the harness finds left: the empty `~/.config/systemd/user` and `~/.local/log` folders, removed only when empty
+  Proof: medium, test — `tests/vm/run.sh notifications` passes on both VMs
 
 ### Validation
 - [ ] Send a tagged `logger` line end to end on both VMs: it reaches the desktop with its icon, under Adwaita and Breeze

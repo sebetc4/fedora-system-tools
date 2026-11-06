@@ -81,6 +81,32 @@ the uninstall. The user reviewed and approved it as written.
 The user installed `bats` (1.13.0) on this machine: `make test` passes its six tests there, and
 `make shellcheck` passes, so both declared checks run green locally.
 
+The VM harness is `tests/vm/run.sh <module>[/<submodule>]`, documented in
+`docs/core/testing.md`. Per VM of `tests/vm/vms.conf`, which bounds what it may touch: shutdown,
+revert to `clean-install`, start, SSH; copy of the working tree's tracked and new files;
+`tests/vm/prereqs.list` (`make`, `yq`, `gum`, the manual steps a fresh Fedora needs today);
+`make install-lib`; two state baselines; `make install-<target>` and the module's checks, twice;
+`make uninstall-<target>`; then the comparison. Checks live in `tests/vm/checks/<module>.sh`,
+each `check_*` function run in its own strict-mode shell by `tests/vm/guest-checks.sh`, with a
+`KEEP` array for what the uninstall keeps on purpose. `tests/vm/guest-state.sh` lists paths
+under `/etc`, `/opt`, `/srv`, `/usr/local`, `/var`, `/root` and the home, hashes `/etc` and
+`~/.config`, and lists accounts; new paths a package owns and accounts a package provides are
+not failures. `virsh` prints states in French here, so the harness runs under `LC_ALL=C`. A
+whole cycle takes about 40 seconds per VM.
+
+Proof, on `notifications` with both VMs: with a `check_zz_deliberate_failure` added to its
+checks, `checks` and `checks-2` report FAIL with "6/7 passed" and the check's reason on GNOME
+and KDE, the six real checks passing. That run also showed `/etc/system-scripts/registry` as
+changed: each `make install-<module>` reinstalls the library, whose `registry_set` rewrites the
+`installed=` date and leaves one more blank line each time (reproduced with
+`REGISTRY_PATH_OVERRIDE`). The harness now hashes the registries without dates and blank
+lines; the blank line is a defect of `lib/registry.sh`, given to Phase 1. Without the
+deliberate check, the last run passes every step on both VMs but `leftovers`, which finds 5
+real leftovers of `notifications`: the user registry and its folder, which stay once their
+last entry is removed (Phase 1), and the empty `~/.config/systemd/user` and `~/.local/log`
+folders the install creates (Phase 2). Until those phases fix them, `tests/vm/run.sh
+notifications` exits 1.
+
 ---
 
 ## Decisions
@@ -101,6 +127,11 @@ The user installed `bats` (1.13.0) on this machine: `make test` passes its six t
   key, private key, VPN credentials), the name or address of the user's hosts, an account name or
   email, or a path or value of the user's own. Commits Phase 1 to the seeding of config files from
   `my-config/` (task added), and every module phase to checking its defaults against this list.
+- **The VM harness installs what a fresh Fedora lacks from `tests/vm/prereqs.list`**: `make`,
+  `yq` and `gum` today, the manual steps the installers do not take. It drives the install
+  through the documented `make` targets, with `NONINTERACTIVE=1` and Enter at every prompt.
+  Commits Phase 1, whose bootstrap task makes `lib/install.sh` install `yq` and `gum`, to remove
+  them from that list, which is how its proof runs on a snapshot holding neither.
 - **The documentation follows the writing-documentation convention**, `[docs]` with
   `root = "docs"` and `notes = "notes"`, set by the user on 2026-11-06: one README per folder of
   documents, a settled decision under its domain document's Decisions, and no link from a
@@ -119,6 +150,10 @@ The user installed `bats` (1.13.0) on this machine: `make test` passes its six t
   decision; Phase 1 goes from 6 to 7 tasks.
 - The documentation's migration to the `[docs]` convention, not planned in this phase, was
   done in it before the checklist, on the plan the user approved.
+- `phase-1-shared-foundation.md`: task added under Library, the registry's blank lines and the
+  user registry left once empty, found by the harness; Phase 1 goes from 7 to 8 tasks.
+- `phase-2-notifications.md`: task added under Review, removing the empty folders its install
+  creates, found by the harness; Phase 2 goes from 5 to 6 tasks.
 - The bats proof ran in a Fedora 45 container instead of on this machine, where `bats` was not
   installed yet; closed once the user installed it and `make test` passed locally.
 

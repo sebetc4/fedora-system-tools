@@ -3,7 +3,8 @@
 The checklist a module is reviewed against, the shared library and installers included, before it
 counts as ready: what each area checks and what passing means. The coding rules it applies are in
 [Conventions](conventions.md), version bumps in [Versioning](versioning.md), and the files a
-module may install in [State, Configuration & Installed Paths](state-and-paths.md).
+module may install in [State, Configuration & Installed Paths](state-and-paths.md), and the
+tools behind the proofs in [Testing](testing.md).
 
 ## How A Review Runs
 

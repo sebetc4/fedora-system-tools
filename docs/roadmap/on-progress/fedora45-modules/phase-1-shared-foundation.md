@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/7)
+**Current Status:** 🔴 Not Started (0% — 0/8)
 **Started:** {{START_DATE}}
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -30,6 +30,8 @@ The modules themselves (phases 2 to 6).
   Proof: high, test — an uninstall on a VM removes the declared files and nothing else
 - [ ] Replace `eval echo ~user` in `lib/notify.sh` and `uninstall.sh` with `getent passwd`
   Proof: low, check — `git grep` finds no `eval` left
+- [ ] Fix the registry's two defects the VM harness showed: each `registry_set` leaves one more blank line in the file, and the user registry and its folder stay once their last entry is removed
+  Proof: medium, test — `bats` tests of both, watched failing then passing
 
 ### Bootstrap
 - [ ] In `lib/install.sh`, install `gum` from Fedora's repositories, remove the Charm repository and its heredoc, and install `yq`, which every installer requires and `README.md` wrongly says is automatic
