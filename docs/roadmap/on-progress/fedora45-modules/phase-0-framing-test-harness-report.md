@@ -40,8 +40,7 @@ CI now runs in the same `fedora:45` container, with Fedora's ShellCheck and bats
 `5bd7f9d` on GitHub is green, every step passed, the unit tests included.
 
 `checks = ["make shellcheck", "make test"]` is declared at the top of `.agent-conventions.toml`,
-and `conventions.py roadmap` prints both. `make test` needs `bats` on this machine, which is still
-to install (`sudo dnf install bats`), or every phase closure stops on it.
+and `conventions.py roadmap` prints both.
 
 The user set the documentation's convention, a `[docs]` table with `root = "docs"` and
 `notes = "notes"`, and chose where personal settings live (see Decisions). `check_docs.py` then
@@ -77,7 +76,10 @@ The review checklist is written in `docs/core/module-review.md`: correctness, op
 tests, security (root boundaries, quoting and input, temporary files, secrets, external sources,
 systemd hardening), personalization, documentation and VM validation, each item with what
 passing means. Its last item commits the VM harness to a comparison of the VM before and after
-the uninstall. It waits on the user's review.
+the uninstall. The user reviewed and approved it as written.
+
+The user installed `bats` (1.13.0) on this machine: `make test` passes its six tests there, and
+`make shellcheck` passes, so both declared checks run green locally.
 
 ---
 
@@ -117,8 +119,8 @@ the uninstall. It waits on the user's review.
   decision; Phase 1 goes from 6 to 7 tasks.
 - The documentation's migration to the `[docs]` convention, not planned in this phase, was
   done in it before the checklist, on the plan the user approved.
-- The bats proof ran in a Fedora 45 container instead of on this machine, where `bats` is not
-  installed; left open until the user installs it.
+- The bats proof ran in a Fedora 45 container instead of on this machine, where `bats` was not
+  installed yet; closed once the user installed it and `make test` passed locally.
 
 ---
 
