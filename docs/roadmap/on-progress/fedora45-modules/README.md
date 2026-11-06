@@ -17,7 +17,7 @@ Reviews every fedora-system-tools module for Fedora 45: settles what stays, then
 ## Overall Progress
 
 ```
-Phase 0  Framing & Test Harness     🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/8)
+Phase 0  Framing & Test Harness     🟡 █░░░░░░░░░░░░░░░░░░░   0%  (0/8)
 Phase 1  Shared Foundation          🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/6)
 Phase 2  Notifications              🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/5)
 Phase 3  ClamAV                     🔴 ░░░░░░░░░░░░░░░░░░░░   0%  (0/9)
@@ -28,8 +28,8 @@ Phase 7  Validation & Release       🔴 ░░░░░░░░░░░░░
 TOTAL                                  ░░░░░░░░░░░░░░░░░░░░   0%  (0/52)
 ```
 
-**Current Phase:** —
-**Blocked By:** roadmap `fedora45-postinstall`, Phase 0
+**Current Phase:** Phase 0: Framing & Test Harness
+**Blocked By:** —
 
 ---
 
@@ -91,8 +91,8 @@ VMs, on Fedora 45.
 
 ## Dependencies
 
-- The two Fedora 45 test VMs (roadmap `fedora45-postinstall`, Phase 0), for this roadmap's Phase 0
-  onward.
+- The two Fedora 45 test VMs (roadmap `fedora45-postinstall`, Phase 0), ready on 2026-11-06, for
+  this roadmap's Phase 0 onward.
 - A Fedora kernel 7.3 or later, expected within weeks, for Phase 6's validation on the Legion 7.
 - The `firewall` step (roadmap `fedora45-postinstall`, Phase 7), before Phase 7 removes the module.
 
@@ -108,5 +108,5 @@ VMs, on Fedora 45.
 
 ## Metadata
 
-**Roadmap Status:** 🔴 Not Started
+**Roadmap Status:** 🟡 In Progress
 **Created:** 2026-11-04

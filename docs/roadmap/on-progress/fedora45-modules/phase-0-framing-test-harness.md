@@ -4,10 +4,10 @@
 
 ## Status
 
-**Current Status:** 🔴 Not Started (0% — 0/8)
-**Started:** {{START_DATE}}
+**Current Status:** 🟡 In Progress (0% — 0/8)
+**Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
-**Blocked By:** roadmap `fedora45-postinstall`, Phase 0
+**Blocked By:** —
 
 ---
 
