@@ -34,6 +34,10 @@ numbers" fails on `0.10.0` against `0.9.0` (`lt` instead of `gt`) and `make test
 mutation reverted, all six pass. `setup.sh` keeps its own copy of the function,
 `_version_compare`, which the tests do not cover: Phase 1 settles it with `setup.sh`.
 
+CI now runs in the same `fedora:45` container, with Fedora's ShellCheck and bats, and runs
+`make test` after `make shellcheck`; `git` is installed before the checkout so that
+`git ls-files` finds a real clone. The job keeps its id, `shellcheck`.
+
 ---
 
 ## Decisions

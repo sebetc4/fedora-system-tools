@@ -9,11 +9,25 @@ on:
 jobs:
   shellcheck:
     runs-on: ubuntu-latest
+    # Fedora's own ShellCheck and bats: the versions a Fedora workstation runs
+    container: registry.fedoraproject.org/fedora:45
     steps:
+      # git first, so that checkout makes a real clone for `git ls-files`
+      - name: Install tools
+        run: dnf install -y bats git make ShellCheck
+
       - uses: actions/checkout@v4
 
-      - name: Install ShellCheck
-        run: sudo apt-get install -y shellcheck
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Show tool versions
+        run: |
+          shellcheck --version
+          bats --version
 
       - name: Run ShellCheck
         run: make shellcheck
+
+      - name: Run unit tests
+        run: make test
