@@ -7,7 +7,7 @@ notification tags in [notify.sh](notify.md), and every path a module installs in
 [State, Configuration & Installed Paths](../core/state-and-paths.md).
 
 **Guard:** `_LIB_SUBMODULE_LOADED`
-**Dependencies:** `core.sh`, `registry.sh`, `notify.sh`, `yq`, `rpm`, `dnf`, `runuser`
+**Dependencies:** `core.sh`, `registry.sh`, `notify.sh`, `ui.sh`, `yq`, `rpm`, `dnf`, `runuser`
 **Sourced by:** module `install.sh` / `uninstall.sh` (clamav, backup, build-kernel)
 
 ---
@@ -190,7 +190,7 @@ mapfile -t deps < <(submodule_get_array "quarantine" "deps" "$MODULE_YML")
 | `_submodule_has_command` | A command in root's or the user's login `PATH` |
 | `_submodule_removable_dir` | The removal guard of declared directories |
 | `_submodule_prune_home_dir` | Remove empty folders of the home, up to its direct children |
-| `_submodule_parse_args` / `_submodule_check_names` / `_submodule_pick` | Orchestrator options, names and selection |
+| `_submodule_parse_args` / `_submodule_check_names` | Orchestrator options and names; the selection is `ui_choose_many`'s |
 | `_sub_success` / `_sub_info` / `_sub_warn` / `_sub_error` | Indented messages |
 | `_show_preserved_configs` | List the config files an uninstall leaves |
 | `_install_service_template` | Render and install a `.tpl` unit |

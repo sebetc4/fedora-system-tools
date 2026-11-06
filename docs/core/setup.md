@@ -1,11 +1,13 @@
 # setup.sh — Interactive System Tools Manager
 
-> Main entry point for managing Fedora system tools. Provides an interactive menu
-> and CLI flags for installing, upgrading, reinstalling, uninstalling, and inspecting
-> modules and submodules.
+The entry point for managing the modules: its menu and CLI flags, how it finds modules and the
+library, what each action applies to, the self-update, and the bootstrap and complete uninstall
+around it, `install.sh` and `uninstall.sh`. What a module's installer then does is in
+[submodule.sh](../lib/submodule.md); the registry it reads, in [registry.sh](../lib/registry.md).
 
-**Location:** `setup.sh` (project root)
-**Requires:** non-root user (uses `sudo` internally when needed)
+**Location:** `setup.sh` (project root), or `/usr/local/bin/system-tools`, a link to
+`/opt/fedora-system-tools/setup.sh` after the bootstrap
+**Requires:** non-root user (uses `sudo` internally when needed), `yq`
 
 ---
 
@@ -27,6 +29,7 @@
 
 # Upgrade
 ./setup.sh --upgrade                      # Upgrade all installed items
+./setup.sh --upgrade clamav               # Upgrade the outdated clamav subs
 ./setup.sh --upgrade clamav/quarantine    # Upgrade one submodule
 
 # Reinstall
@@ -36,124 +39,84 @@
 
 # Uninstall
 ./setup.sh --uninstall                    # Interactive uninstallation
+./setup.sh --uninstall clamav             # Uninstall all clamav submodules
 ./setup.sh --uninstall clamav/quarantine  # Uninstall one submodule
+
+# Update the suite installed under /opt/fedora-system-tools
+./setup.sh --self-update
 ```
+
+A flag naming a module acts on the whole module, as its `make` target does; the menu asks which
+submodules. An unknown option, a missing target, or an unknown module or submodule is an error.
+
+---
+
+## What Each Action Applies To
+
+| Action | Submodules |
+|---|---|
+| Install | those not installed, or installed at an older version |
+| Upgrade | those installed at an older version; a submodule not installed is an error |
+| Reinstall | those installed, with `--force`; a submodule not installed is an error |
+| Uninstall | those installed; in the menu, with every installed submodule depending on one picked, at any depth |
+
+A standalone module is installed, upgraded, reinstalled or uninstalled whole. `setup.sh` passes
+the submodules to the module's installer with `--only`, under `sudo` for a `system` module, so
+the engine's deps resolution and protection apply.
 
 ---
 
 ## Architecture
 
-### Pre-Lib Fallback UI
+### The Library
 
-`setup.sh` cannot source the shared lib before installing it. It provides its own
-local UI helpers (`warn()`, `error()`, `success()`, `info()`, `ui_confirm()`,
-`ui_header()`, `ui_choose()`) with the same conventions (colors + typed messages).
-
-Once the lib is installed, `ensure_lib()` sources `core.sh` and `ui.sh` for enhanced
-features (Gum integration, color theming).
+`setup.sh` sources `lib/core.sh`, `lib/registry.sh` and `lib/ui.sh` from beside itself, so the
+library's messages, menus, registry readers and `version_compare` serve before the library is
+installed. Every mode but `--list` first runs `ensure_lib()`: it installs the library, which
+installs `yq` and `gum`, when the system registry holds no `lib` entry, and upgrades it when the
+copy beside `setup.sh` is newer, after asking in the menu. `--list` needs `yq` already there.
 
 ### Module Discovery
 
-Modules are auto-discovered from `modules/*/module.yml` files. No hardcoded module
-list exists. Discovery populates:
+Modules are discovered from `modules/*/module.yml`: no list of modules is kept. Discovery fills
+`MODULE_DESC`, `MODULE_TYPE`, `MODULE_DEPS` (inter-module deps), `MODULE_STANDALONE`,
+`MODULE_DIR_MAP` and `MODULES_ORDER`. Submodules come in the order `module.yml` lists them; those
+of `kind: hook` show under their own heading in the status.
 
-| Variable | Type | Content |
-|---|---|---|
-| `MODULE_DESC` | assoc array | Module descriptions |
-| `MODULE_TYPE` | assoc array | `system` or `user` |
-| `MODULE_DEPS` | assoc array | Inter-module deps (space-separated) |
-| `MODULE_STANDALONE` | assoc array | `true` or `false` |
-| `MODULE_DIR_MAP` | assoc array | Module directory paths |
-| `MODULES_ORDER` | indexed array | Discovery order |
+### Versions
 
-### Library Bootstrap
-
-`ensure_lib()` handles three scenarios:
-
-1. **Lib not installed** — auto-installs via `lib/install.sh`
-2. **Lib outdated** — prompts for upgrade (interactive) or auto-upgrades (CLI)
-3. **Lib current** — sources `core.sh` and `ui.sh` for enhanced features
-
-The function checks the install exit code and aborts on failure.
+An installed version is read from the system registry, then from the user's, for a module or a
+`module/submodule` section; the available one from `module.yml`.
 
 ---
 
 ## Safety Mechanisms
 
-### CLI Target Validation
+**Inter-module dependencies.** `install_module()` installs a module's missing `module_deps`
+first, after asking in the menu; `uninstall_module()` refuses a module another installed module
+depends on.
 
-When a CLI target is provided (`--install clamav`, `--uninstall clamav/quarantine`),
-the module name is validated against discovered modules before any action. Unknown
-modules produce an error with the list of available modules.
+**Minimum library version.** `install_module()` refuses a module whose `min_lib_version` is
+above the library's.
 
-### Inter-Module Dependency Protection
-
-**On install:** `install_module()` checks `MODULE_DEPS` and auto-installs missing
-dependencies before proceeding. In interactive mode, prompts for confirmation first.
-
-**On uninstall:** `uninstall_module()` performs reverse-dependency checking. If any
-installed module declares the target module in its `module_deps`, uninstall is blocked
-with an error listing the dependent modules.
-
-### Submodule Selection Return Check
-
-All three `_interactive_select_*` functions set the global `SUBMODULE_SELECTION`
-variable and return 0 (success) or 1 (cancelled/nothing to do). Every caller checks
-the return value before using `SUBMODULE_SELECTION`:
-
-```bash
-if _interactive_select_submodules "$module"; then
-    if [[ -n "$SUBMODULE_SELECTION" ]]; then
-        install_module "$module" "$SUBMODULE_SELECTION"
-    else
-        install_module "$module"
-    fi
-fi
-```
-
-When `SUBMODULE_SELECTION` is empty (standalone modules, no yq fallback), the module
-is installed with `--all`. When non-empty, only the selected submodules are installed.
-
-### Minimum Library Version
-
-`install_module()` reads `min_lib_version` from `module.yml` and compares against the
-installed lib version. If the lib is too old, installation is blocked with a message
-to run `make install-lib`.
-
----
-
-## Interactive Submodule Selection
-
-For submodule-based modules, three selection functions handle pre-sudo interactive
-selection:
-
-| Function | Purpose | SUBMODULE_SELECTION |
-|---|---|---|
-| `_interactive_select_submodules()` | Install — shows available (not yet installed) | Comma-separated selected subs |
-| `_interactive_select_submodules_uninstall()` | Uninstall — shows installed | Empty = all, or comma-separated |
-| `_interactive_select_submodules_reinstall()` | Reinstall — shows installed | Empty = all, or comma-separated |
-
-All three use Gum multi-select when available, with a numbered-list bash fallback.
-
-### Auto-Add Dependents (Uninstall)
-
-When uninstalling, if a dependency submodule (e.g. `core`) is selected, all submodules
-that depend on it are automatically added to the selection.
+**Selection before sudo.** In the menu, `_select_submodules <action> <module>` lists the
+module's submodules with their state and lets the user pick among those the action applies to,
+before any `sudo`; a single installed submodule is taken without asking. It sets
+`SUBMODULE_SELECTION` and returns 1 when there is nothing to pick or nothing was picked. Without
+`gum`, `ui_choose_many` reads numbers or `all`, and an empty answer picks nothing.
 
 ---
 
 ## Interactive Menu
 
-The main menu (`main_menu()`) provides a loop with options:
-
 | Option | Action |
 |---|---|
 | Status | Display all modules and submodule versions |
 | Install | Select and install new modules/submodules |
-| Update | Upgrade installed modules with newer versions |
+| Update | Update the suite (from `/opt/fedora-system-tools` only), then upgrade installed modules |
 | Uninstall | Remove installed modules/submodules |
 | Info | Show detailed module/submodule information |
-| Reinstall | Force reinstall (with `--force` flag) |
+| Reinstall | Force reinstall installed submodules |
 | Colors | Customize UI color theme |
 | Quit | Exit |
 
@@ -161,16 +124,36 @@ The main menu (`main_menu()`) provides a loop with options:
 
 ## Color Customization
 
-The Colors menu allows per-user theme customization stored in
-`~/.config/system-scripts/color.conf`. Customizable properties:
+The Colors menu writes the user's choices to `~/.config/system-scripts/color.conf`, over the
+system's `/etc/system-scripts/color.conf`, and applies them at once with `color_reload()`:
+accent, header border and text, selection title, selection, and error. Values accept ANSI
+0–255, `#RGB` or `#RRGGBB`; an empty header, selection title or selection color falls back to
+the accent or the default. "Reset to defaults" removes the user's file.
 
-- Accent color
-- Header border and text colors
-- Selection title and cursor colors
-- Error color
+---
 
-Values accept ANSI 0–255 or `#RRGGBB` hex codes. Changes are applied immediately
-via `color_reload()` when the lib is loaded.
+## Self-Update
+
+Only an install under `/opt/fedora-system-tools` updates itself, from the newest `vX.Y.Z`
+GitHub release; a checkout says to `git pull` instead. The release's tarball is downloaded with
+`curl --fail` and read as an archive before anything installed is touched, then replaces `lib/`,
+`modules/`, `setup.sh` and `Makefile`, and the library is reinstalled. `latest_project_tag` and
+`download_release` are the same in `install.sh`, which `tests/unit/install.bats` checks.
+
+---
+
+## Bootstrap And Complete Uninstall
+
+`install.sh`, the `curl … | bash` one-liner, installs the newest release under
+`/opt/fedora-system-tools`, links `system-tools` to its `setup.sh` and installs the library; with
+arguments, it passes them to `system-tools`, whether it installed or found an install.
+
+`sudo ./uninstall.sh [--yes]`, from a checkout or from `/opt/fedora-system-tools`, lists what it
+removes and asks, then runs each installed module's uninstaller, found from `modules/*/module.yml`
+and either registry: as root for a `system` module, as the user for a `user` module. It then
+removes the library, `/etc/system-scripts`, the `system-tools` link, the user registry file
+(its folder only once empty) and `/opt/fedora-system-tools`. The user's own files in the home —
+module configs, `bookmarks.conf`, `color.conf` — stay, and so do `yq` and `gum`.
 
 ---
 
@@ -178,23 +161,20 @@ via `color_reload()` when the lib is loaded.
 
 | Function | Purpose |
 |---|---|
-| `_discover_modules()` | Parse all `module.yml` files |
-| `_version_compare()` | Compare two semver strings (returns `lt`, `eq`, `gt`) |
-| `ensure_lib()` | Install/upgrade lib, source it |
-| `install_module()` | Install a module with dependency resolution |
-| `uninstall_module()` | Uninstall a module with reverse-dep protection |
-| `show_status()` | Display installed/available versions |
-| `show_info()` | Detailed module/submodule view |
-| `get_available_version()` | Read version from `module.yml` |
-| `get_module_installed_version()` | Read version from registry |
+| `_discover_module` / `_discover_modules` | Read one `module.yml`, or all of them |
+| `_installed_version` | Installed version of a module or `module/submodule`, from either registry |
+| `_available_version` / `_sub_available_version` | Versions declared in `module.yml` |
+| `_submodules` | A module's submodules, all, main or hooks |
+| `_candidates` | Submodules an action applies to |
+| `_has_update` | A module with an outdated installed part |
+| `_with_dependents` | A selection, with the installed submodules depending on it |
+| `install_module` / `uninstall_module` | Run a module's installer or uninstaller |
+| `_upgrade_module` / `_reinstall_module` | Upgrade or reinstall a whole module |
+| `ensure_lib` | Install or upgrade the library |
+| `show_status` / `show_info` | Status table and detailed view |
+| `parse_args` / `validate_target` | CLI options and target |
+| `cli_upgrade` / `cli_reinstall` | The CLI's upgrade and reinstall |
+| `check_remote_version` / `apply_self_update` / `self_update` | The self-update |
 
----
-
-## Registry Interaction
-
-`setup.sh` reads registries directly (without sourcing `lib/registry.sh`) using inline
-`awk` commands. This allows `--list` and discovery to work even before the lib is
-installed.
-
-- **System registry:** `/etc/system-scripts/registry`
-- **User registry:** `~/.config/system-scripts/registry`
+`setup.sh` and `uninstall.sh` run `main` only when executed, so that `tests/unit/setup.bats` and
+`tests/unit/uninstall.bats` can source them and test these functions alone.

@@ -45,7 +45,7 @@ installed=2026-02-15 10:30:46
 #### `registry_get_path`
 
 Returns the registry file path: system if root, user otherwise.
-Override with `REGISTRY_PATH_OVERRIDE` env var (used by submodule engine for user-type submodules under sudo).
+Override with `REGISTRY_PATH_OVERRIDE` env var (used by submodule engine for user-type submodules under sudo). `SYSTEM_REGISTRY_PATH` moves the system registry itself, for the tests.
 
 #### `registry_init`
 

@@ -79,13 +79,7 @@ debug() {
 # ===================
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        if [[ -t 0 ]]; then
-            warn "This script must be run as root"
-            info "Re-running with sudo..."
-            exec sudo "$0" "$@"
-        else
-            error "This script must be run as root (sudo)" "exit"
-        fi
+        error "This script must be run as root: sudo $0" "exit"
     fi
 }
 

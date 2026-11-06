@@ -306,10 +306,11 @@ What is removed vs preserved when uninstalling each component.
 | Lib directory | `/usr/local/lib/system-scripts/` | yes |
 | Config directory | `/etc/system-scripts/` (all contents) | yes |
 | System registry | `/etc/system-scripts/registry` | yes |
-| User registry | `~/.config/system-scripts/` | yes |
+| User registry | `~/.config/system-scripts/registry`, its folder once empty | yes |
+| User files (`bookmarks.conf`, `color.conf`, module configs) | `~/.config/…` | **preserved** |
 | CLI symlink | `/usr/local/bin/system-tools` | yes |
 | Install directory | `/opt/fedora-system-tools/` | yes |
-| Gum | system binary | **preserved** (manual: `sudo dnf remove gum`) |
+| yq, Gum | Fedora packages | **preserved** (manual: `sudo dnf remove yq gum`) |
 
 ### Submodule engine (`lib/submodule.sh`)
 

@@ -10,7 +10,7 @@
 #   curl -sSL ... | bash -s -- --all    # Bootstrap + install all modules
 #
 # Requires: bash 4+, curl, tar, sudo
-# Version: 0.1.1
+# Version: 0.2.0
 # =============================================================================
 
 set -euo pipefail
@@ -24,6 +24,10 @@ readonly GITHUB_REPO="sebetc4/fedora-system-tools"
 readonly INSTALL_DIR="/opt/fedora-system-tools"
 readonly SYMLINK_PATH="/usr/local/bin/system-tools"
 readonly API_URL="https://api.github.com/repos/${GITHUB_REPO}/releases"
+
+# Download folder, removed on exit
+TMP_DIR=""
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 # Colors (disabled if not a terminal)
 C_RED='\033[0;31m'
@@ -79,9 +83,23 @@ latest_project_tag() {
         | sort -V | tail -n 1 | grep .
 }
 
+# Download a release's tarball into a folder and check that it reads as an
+# archive, before anything installed is touched. setup.sh holds the same
+# function, which tests/unit/install.bats keeps identical.
+# Args: tag dir
+# Output: the tarball's path
+download_release() {
+    local tag="$1" dir="$2"
+    local tarball="fedora-system-tools-${tag#v}.tar.gz"
+    curl -fsSL -o "$dir/$tarball" "https://github.com/${GITHUB_REPO}/releases/download/${tag}/${tarball}" \
+        || return 1
+    tar -tzf "$dir/$tarball" > /dev/null || return 1
+    echo "$dir/$tarball"
+}
+
 get_latest_version() {
     local response
-    response=$(curl -sSL "${API_URL}?per_page=100" 2>/dev/null) || {
+    response=$(curl -fsSL "${API_URL}?per_page=100" 2>/dev/null) || {
         error "Failed to query GitHub API"
         exit 1
     }
@@ -104,23 +122,18 @@ get_latest_version() {
 download_and_install() {
     local tag="$1"
     local version="${tag#v}"
-    local tarball="fedora-system-tools-${version}.tar.gz"
-    local download_url="https://github.com/${GITHUB_REPO}/releases/download/${tag}/${tarball}"
-    local tmp_dir
+    local tarball
 
-    tmp_dir=$(mktemp -d)
-    trap 'rm -rf "$tmp_dir"; echo "ERROR: Installation failed at line $LINENO" >&2; exit 1' ERR
-
-    info "Downloading ${tarball}..."
-    if ! curl -sSL -o "${tmp_dir}/${tarball}" "$download_url"; then
-        error "Failed to download ${download_url}"
-        rm -rf "$tmp_dir"
+    TMP_DIR=$(mktemp -d)
+    info "Downloading release ${tag}..."
+    if ! tarball=$(download_release "$tag" "$TMP_DIR"); then
+        error "Failed to download release ${tag}"
         exit 1
     fi
 
     info "Installing to ${INSTALL_DIR}..."
     sudo mkdir -p "$INSTALL_DIR"
-    sudo tar xzf "${tmp_dir}/${tarball}" -C "$INSTALL_DIR" --strip-components=1
+    sudo tar xzf "$tarball" -C "$INSTALL_DIR" --strip-components=1
 
     # --- Store installed version ---
     echo "$version" | sudo tee "${INSTALL_DIR}/.version" > /dev/null
@@ -133,7 +146,6 @@ download_and_install() {
     info "Installing shared library..."
     sudo "${INSTALL_DIR}/lib/install.sh"
 
-    rm -rf "$tmp_dir"
     success "Fedora System Tools v${version} installed"
 }
 
@@ -148,28 +160,26 @@ main() {
 
     check_prerequisites
 
-    # --- Check if already installed ---
+    # --- Install, unless already installed ---
     if [[ -f "${INSTALL_DIR}/.version" ]]; then
-        local current_version
-        current_version=$(cat "${INSTALL_DIR}/.version")
-        info "Already installed: v${current_version}"
+        info "Already installed: v$(cat "${INSTALL_DIR}/.version")"
         info "Use 'system-tools --self-update' to update"
         echo ""
-        exit 0
+    else
+        local tag
+        tag=$(get_latest_version)
+        info "Latest release: ${tag}"
+
+        download_and_install "$tag"
+
+        echo ""
+        echo -e "${C_BOLD}Next steps:${C_NC}"
+        echo "  system-tools               # Interactive menu"
+        echo "  system-tools --install X   # Install a module"
+        echo "  system-tools --list        # List installed modules"
+        echo "  sudo ${INSTALL_DIR}/uninstall.sh   # Remove everything"
+        echo ""
     fi
-
-    local tag
-    tag=$(get_latest_version)
-    info "Latest release: ${tag}"
-
-    download_and_install "$tag"
-
-    echo ""
-    echo -e "${C_BOLD}Next steps:${C_NC}"
-    echo "  system-tools               # Interactive menu"
-    echo "  system-tools --install X   # Install a module"
-    echo "  system-tools --list        # List installed modules"
-    echo ""
 
     # --- Forward arguments to setup.sh ---
     if [[ $# -gt 0 ]]; then

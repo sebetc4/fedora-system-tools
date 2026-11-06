@@ -22,7 +22,8 @@ readonly _LIB_REGISTRY_LOADED=1
 # CONSTANTS
 # =============================================================================
 
-readonly SYSTEM_REGISTRY="/etc/system-scripts/registry"
+# SYSTEM_REGISTRY_PATH points the system registry elsewhere, for tests
+readonly SYSTEM_REGISTRY="${SYSTEM_REGISTRY_PATH:-/etc/system-scripts/registry}"
 readonly USER_REGISTRY="${HOME}/.config/system-scripts/registry"
 
 # =============================================================================

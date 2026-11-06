@@ -40,7 +40,7 @@ jobs:
           VERSION="${{ steps.tag.outputs.version }}"
           tar czf "fedora-system-tools-${VERSION}.tar.gz" \
             --transform "s,^,fedora-system-tools-${VERSION}/," \
-            VERSION lib/ modules/ templates/color.conf.default setup.sh Makefile
+            VERSION lib/ modules/ templates/color.conf.default setup.sh uninstall.sh Makefile
 
       - name: Build module tarball
         if: steps.tag.outputs.type == 'module'

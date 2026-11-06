@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (88% — 7/8)
+**Current Status:** 🟡 In Progress (100% — 8/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -36,7 +36,7 @@ The modules themselves (phases 2 to 6).
 ### Bootstrap
 - [x] In `lib/install.sh`, install `gum` from Fedora's repositories, remove the Charm repository and its heredoc, and install `yq`, which every installer requires and `README.md` wrongly says is automatic
   Proof: medium, a run on a fresh VM snapshot holding neither `yq` nor `gum`
-- [ ] Review `setup.sh`, `install.sh` and `uninstall.sh` against the checklist, splitting `setup.sh` (2188 lines) if the review calls for it
+- [x] Review `setup.sh`, `install.sh` and `uninstall.sh` against the checklist, splitting `setup.sh` (2188 lines) if the review calls for it
   Proof: medium, use — install, list, upgrade, reinstall and uninstall of one module on both VMs
 - [x] Seed each config file a submodule installs from `my-config/`, laid out like the repository's tree (`my-config/modules/backup/vps/config.yml` for `modules/backup/vps/config.yml`), when a copy is kept there, from the module's default otherwise, and never overwrite an installed config file
   Proof: medium, test — a VM install with a copy in `my-config/` installs the copy, and a second install leaves an edited config untouched

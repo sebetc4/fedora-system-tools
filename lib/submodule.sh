@@ -11,7 +11,7 @@
 # ships, and the folders of the user's home they needed once those are empty.
 # Config files stay.
 #
-# Requires: yq (for parsing module.yml), core.sh, registry.sh, notify.sh
+# Requires: yq (for parsing module.yml), core.sh, registry.sh, notify.sh, ui.sh
 # Usage: source "$LIB_DIR/submodule.sh"
 #
 # Includes double-sourcing protection.
@@ -24,6 +24,7 @@ readonly _LIB_SUBMODULE_LOADED=1
 source "$(dirname "${BASH_SOURCE[0]}")/core.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/registry.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/notify.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/ui.sh"
 
 # =============================================================================
 # MODULE.YML PARSING (yq wrappers)
@@ -829,44 +830,6 @@ _submodule_check_names() {
     done
 }
 
-# Let the user pick submodules, with gum or a numbered list
-# Args: header names...
-# Output: the names picked, one per line
-_submodule_pick() {
-    local header="$1"
-    shift
-    local names=("$@") picked=() selection num i
-
-    if has_gum; then
-        mapfile -t picked < <(printf '%s\n' "all" "${names[@]}" | gum choose --no-limit --header "$header")
-        if printf '%s\n' "${picked[@]}" | grep -qx "all"; then
-            picked=("${names[@]}")
-        fi
-    else
-        echo -e "${C_BOLD}${header}${C_NC}" >&2
-        echo "  Enter numbers separated by spaces, or 'all' for everything" >&2
-        echo "" >&2
-        for i in "${!names[@]}"; do
-            echo -e "  ${C_BOLD}$((i + 1)))${C_NC} ${names[$i]}" >&2
-        done
-        echo "" >&2
-        read -rp "Selection [all]: " selection
-        selection="${selection:-all}"
-        if [[ "$selection" == "all" ]]; then
-            picked=("${names[@]}")
-        else
-            for num in $selection; do
-                if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= ${#names[@]} )); then
-                    picked+=("${names[$((num - 1))]}")
-                fi
-            done
-        fi
-    fi
-    if (( ${#picked[@]} > 0 )); then
-        printf '%s\n' "${picked[@]}"
-    fi
-}
-
 # Run the full submodule install orchestration for a module
 # Args: module_dir [CLI args...]
 # CLI args: --all (install all), --only <names> (comma-separated), --force, or none (interactive)
@@ -950,7 +913,7 @@ submodule_run_install() {
         interactive)
             local select_header="Select submodules to install:"
             [[ "$_force" == "true" ]] && select_header="Select submodules to reinstall:"
-            mapfile -t selected < <(_submodule_pick "$select_header" "${available_subs[@]}")
+            mapfile -t selected < <(ui_choose_many "$select_header" "${available_subs[@]}")
             ;;
     esac
 
@@ -1040,7 +1003,7 @@ submodule_run_uninstall() {
                 echo -e "  ${C_GREEN}$sub${C_NC} v$(_get_sub_version "$module_name" "$sub" "$module_yml")"
             done
             echo ""
-            mapfile -t selected < <(_submodule_pick "Select submodules to uninstall:" "${installed[@]}")
+            mapfile -t selected < <(ui_choose_many "Select submodules to uninstall:" "${installed[@]}")
             ;;
     esac
 

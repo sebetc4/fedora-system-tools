@@ -2,21 +2,32 @@
 # =============================================================================
 # UNINSTALL - Complete removal of Fedora System Tools
 # =============================================================================
-# Removes all installed modules, the shared library, configuration files,
-# registries, and the /opt/fedora-system-tools installation directory.
+# Uninstalls every installed module through its own uninstaller, then removes
+# the shared library, /etc/system-scripts, the user registry and the
+# /opt/fedora-system-tools installation directory. The user's own files in
+# the home (module configs, bookmarks.conf, color.conf) stay, as each
+# module's uninstall keeps them.
 #
-# This is the reverse of install.sh (the curl one-liner bootstrap).
+# This is the reverse of install.sh (the curl one-liner bootstrap), and runs
+# from a checkout or from /opt/fedora-system-tools alike.
 #
 # Usage:
 #   sudo ./uninstall.sh          # Interactive confirmation
 #   sudo ./uninstall.sh --yes    # Skip confirmation
 #
-# Requires: bash 4+, sudo
-# Version: 0.1.1
+# Module: setup
+# Requires: core, registry
+# Version: 0.2.0
 # =============================================================================
 
 set -euo pipefail
 trap 'echo "ERROR: Uninstall failed at line $LINENO" >&2; exit 1' ERR
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+
+source "$SCRIPT_DIR/lib/core.sh"
+source "$SCRIPT_DIR/lib/registry.sh"
 
 # =============================================================================
 # CONFIGURATION
@@ -27,102 +38,51 @@ readonly LIB_INSTALL_DIR="/usr/local/lib/system-scripts"
 readonly CONFIG_DIR="/etc/system-scripts"
 readonly SYMLINK_PATH="/usr/local/bin/system-tools"
 
-# Colors (disabled if not a terminal)
-C_RED='\033[0;31m'
-C_GREEN='\033[0;32m'
-C_YELLOW='\033[1;33m'
-C_CYAN='\033[0;36m'
-C_BOLD='\033[1m'
-C_NC='\033[0m'
-
-if [[ ! -t 1 ]]; then
-    C_RED='' C_GREEN='' C_YELLOW='' C_CYAN='' C_BOLD='' C_NC=''
-fi
-
-error()   { echo -e "${C_RED}Error: $1${C_NC}" >&2; }
-success() { echo -e "${C_GREEN}✓ $1${C_NC}"; }
-info()    { echo -e "${C_CYAN}$1${C_NC}"; }
-warn()    { echo -e "${C_YELLOW}Warning: $1${C_NC}" >&2; }
-
-# =============================================================================
-# PARSE ARGUMENTS
-# =============================================================================
-
-SKIP_CONFIRM=false
-for arg in "$@"; do
-    case "$arg" in
-        --yes|-y) SKIP_CONFIRM=true ;;
-        --help|-h)
-            echo "Usage: sudo ./uninstall.sh [--yes]"
-            echo "  --yes, -y    Skip confirmation prompt"
-            exit 0
-            ;;
-        *)
-            error "Unknown option: $arg"
-            exit 1
-            ;;
-    esac
-done
-
-# =============================================================================
-# ROOT CHECK
-# =============================================================================
-
-if [[ $EUID -ne 0 ]]; then
-    error "This script must be run as root (sudo ./uninstall.sh)"
-    exit 1
-fi
-
-# =============================================================================
-# PRE-FLIGHT CHECK
-# =============================================================================
-
-if [[ ! -d "$INSTALL_DIR" ]] && [[ ! -d "$LIB_INSTALL_DIR" ]] && [[ ! -d "$CONFIG_DIR" ]]; then
-    info "Fedora System Tools does not appear to be installed."
-    exit 0
-fi
+# The user the uninstall acts for, and the user registry (set by main)
+REAL_USER=""
+REAL_REGISTRY=""
 
 # =============================================================================
 # UNINSTALL MODULES
 # =============================================================================
 
+# Succeed when a module has an entry in the system registry or the user's
+# Args: module
+module_installed() {
+    REGISTRY_PATH_OVERRIDE="$SYSTEM_REGISTRY" registry_is_installed "$1" \
+        || REGISTRY_PATH_OVERRIDE="$REAL_REGISTRY" registry_is_installed "$1"
+}
+
+# Run each installed module's uninstaller: as root for a system module, as the
+# user for a user module, which refuses root
 uninstall_all_modules() {
-    local registry="$CONFIG_DIR/registry"
-    [[ ! -f "$registry" ]] && return 0
-
-    # Collect installed modules (exclude lib)
-    local modules=()
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^\[([a-z]+)\]$ ]]; then
-            local module="${BASH_REMATCH[1]}"
-            [[ "$module" != "lib" ]] && modules+=("$module")
+    local yml name type dir args found=false
+    for yml in "$SCRIPT_DIR"/modules/*/module.yml; do
+        [[ -f "$yml" ]] || continue
+        name=$(yq -r '.name' "$yml")
+        module_installed "$name" || continue
+        found=true
+        type=$(yq -r '.type // "system"' "$yml")
+        dir=$(dirname "$yml")
+        args=()
+        if [[ "$(yq -r '.standalone // false' "$yml")" != "true" ]]; then
+            args=(--all)
         fi
-    done < "$registry"
 
-    # Deduplicate (submodule entries share the module prefix)
-    local unique_modules=()
-    local seen=""
-    for m in "${modules[@]}"; do
-        if [[ ! " $seen " =~ \ $m\  ]]; then
-            unique_modules+=("$m")
-            seen="$seen $m"
-        fi
-    done
-
-    if [[ ${#unique_modules[@]} -eq 0 ]]; then
-        info "No modules installed"
-        return 0
-    fi
-
-    for module in "${unique_modules[@]}"; do
-        local uninstaller="$INSTALL_DIR/modules/$module/uninstall.sh"
-        if [[ -f "$uninstaller" ]]; then
-            info "Uninstalling module: $module..."
-            NONINTERACTIVE=1 bash "$uninstaller" --all 2>/dev/null || warn "Module '$module' uninstall had errors"
+        info "Uninstalling module: $name..."
+        if [[ "$type" == "user" && "$REAL_USER" != "root" ]]; then
+            runuser -u "$REAL_USER" -- env NONINTERACTIVE=1 \
+                XDG_RUNTIME_DIR="/run/user/$(id -u "$REAL_USER")" \
+                bash "$dir/uninstall.sh" "${args[@]}" \
+                || warn "Module '$name' uninstall had errors"
         else
-            warn "No uninstaller found for module '$module' — skipping"
+            NONINTERACTIVE=1 bash "$dir/uninstall.sh" "${args[@]}" \
+                || warn "Module '$name' uninstall had errors"
         fi
     done
+    if [[ "$found" == "false" ]]; then
+        info "No modules installed"
+    fi
 }
 
 # =============================================================================
@@ -130,27 +90,53 @@ uninstall_all_modules() {
 # =============================================================================
 
 main() {
+    local arg skip_confirm=false
+    for arg in "$@"; do
+        case "$arg" in
+            --yes|-y) skip_confirm=true ;;
+            --help|-h)
+                echo "Usage: sudo ./uninstall.sh [--yes]"
+                echo "  --yes, -y    Skip confirmation prompt"
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $arg"
+                exit 1
+                ;;
+        esac
+    done
+
+    check_root
+    check_deps yq
+
+    REAL_USER="${SUDO_USER:-root}"
+    local real_home
+    real_home=$(getent passwd "$REAL_USER" | cut -d: -f6) || true
+    [[ -n "$real_home" ]] || error "No home found for user '$REAL_USER'" "exit"
+    REAL_REGISTRY="$real_home/.config/system-scripts/registry"
+
     echo ""
     echo -e "${C_BOLD}${C_CYAN}Fedora System Tools — Complete Uninstall${C_NC}"
     echo ""
 
+    if [[ ! -d "$INSTALL_DIR" && ! -d "$LIB_INSTALL_DIR" && ! -d "$CONFIG_DIR" && ! -f "$REAL_REGISTRY" ]]; then
+        info "Fedora System Tools does not appear to be installed."
+        exit 0
+    fi
+
     # --- Show what will be removed ---
     info "The following will be removed:"
-    [[ -d "$INSTALL_DIR" ]]     && echo "  - $INSTALL_DIR"
+    echo "  - every installed module, through its own uninstaller"
     [[ -d "$LIB_INSTALL_DIR" ]] && echo "  - $LIB_INSTALL_DIR"
     [[ -d "$CONFIG_DIR" ]]      && echo "  - $CONFIG_DIR (registry, configs)"
     [[ -L "$SYMLINK_PATH" ]]    && echo "  - $SYMLINK_PATH (symlink)"
-
-    local user_home user_registry
-    user_home=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6) || true
-    user_registry="${user_home:?no home found for ${SUDO_USER:-$USER}}/.config/system-scripts"
-    if [[ -d "$user_registry" ]]; then
-        echo "  - $user_registry (user registry)"
-    fi
+    [[ -f "$REAL_REGISTRY" ]]   && echo "  - $REAL_REGISTRY (user registry)"
+    [[ -d "$INSTALL_DIR" ]]     && echo "  - $INSTALL_DIR"
     echo ""
 
     # --- Confirmation ---
-    if [[ "$SKIP_CONFIRM" != true ]]; then
+    if [[ "$skip_confirm" != true ]]; then
+        local confirm
         read -r -p "Proceed with complete uninstall? [y/N] " confirm
         if [[ "${confirm,,}" != "y" ]]; then
             info "Cancelled."
@@ -180,10 +166,11 @@ main() {
         success "Removed $CONFIG_DIR"
     fi
 
-    # --- 5. Remove user registry ---
-    if [[ -d "$user_registry" ]]; then
-        rm -rf "$user_registry"
-        success "Removed $user_registry"
+    # --- 5. Remove the user registry, and its folder once empty ---
+    if [[ -f "$REAL_REGISTRY" ]]; then
+        rm -f "$REAL_REGISTRY"
+        rmdir --ignore-fail-on-non-empty "$(dirname "$REAL_REGISTRY")"
+        success "Removed $REAL_REGISTRY"
     fi
 
     # --- 6. Remove installation directory ---
@@ -195,9 +182,12 @@ main() {
     echo ""
     success "Fedora System Tools completely uninstalled."
     echo ""
-    echo -e "${C_BOLD}Note:${C_NC} Gum (if installed) was not removed."
-    echo "  To remove it: sudo dnf remove gum"
+    echo -e "${C_BOLD}Note:${C_NC} yq and gum, installed from Fedora's repositories, stay."
+    echo "  To remove them: sudo dnf remove yq gum"
     echo ""
 }
 
-main
+# Sourced by the tests, which call its functions alone
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

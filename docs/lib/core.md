@@ -79,7 +79,7 @@ debug "Variable=$var"
 
 ### `check_root`
 
-Exit with error if not running as root.
+Exit with an error naming the `sudo` command to run when not running as root.
 
 ```bash
 check_root  # exits if EUID != 0

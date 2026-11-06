@@ -36,6 +36,16 @@ choice=$(ui_choose "Option A" "Option B" "Option C")
 choice=$(ui_choose --header "Select module" "clamav" "backup" "torrent")
 ```
 
+### `ui_choose_many header items...`
+
+Pick several items from a list, with `all` offered first for every item; prints those picked, one
+per line. Without Gum, it reads numbers separated by spaces, or `all`, and an empty answer picks
+nothing. The submodule engine and `setup.sh` select submodules with it.
+
+```bash
+mapfile -t picked < <(ui_choose_many "Select submodules to install:" core scanner report)
+```
+
 ### `ui_input prompt [placeholder]`
 
 Single-line text input with optional placeholder/default.

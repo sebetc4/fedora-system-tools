@@ -8,6 +8,7 @@
 # Available functions:
 #   ui_confirm "Question?"                   # Yes/no confirmation
 #   ui_choose "A" "B" "C"                    # Pick from a list
+#   ui_choose_many "Header:" "A" "B"         # Pick several from a list, "all" first
 #   ui_input "Prompt" "placeholder"          # Single-line text input
 #   ui_password "Prompt"                     # Silent password input
 #   ui_press_enter ["message"]               # Pause (skipped when NONINTERACTIVE=1 or no terminal)
@@ -88,6 +89,44 @@ ui_choose() {
         if [[ "$choice" =~ ^[0-9]+$ ]] && [[ $choice -ge 1 ]] && [[ $choice -le ${#items[@]} ]]; then
             echo "${items[$((choice-1))]}"
         fi
+    fi
+}
+
+# =============================================================================
+# CHOOSE MANY — Pick several items from a list
+# =============================================================================
+# Usage: mapfile -t picked < <(ui_choose_many "Select submodules:" core scanner)
+# Offers "all" first, standing for every item. Without Gum, reads numbers
+# separated by spaces, or "all"; an empty answer picks nothing. Prints the
+# items picked, one per line, the menu itself going to stderr.
+ui_choose_many() {
+    local header="$1"
+    shift
+    local items=("$@") picked=() selection num i
+
+    if has_gum; then
+        mapfile -t picked < <(printf '%s\n' "all" "${items[@]}" | gum choose --no-limit --header "$header")
+        if printf '%s\n' "${picked[@]}" | grep -qx "all"; then
+            picked=("${items[@]}")
+        fi
+    else
+        echo -e "${C_BOLD}${header}${C_NC}" >&2
+        for i in "${!items[@]}"; do
+            echo -e "  ${C_BOLD}$((i + 1)))${C_NC} ${items[$i]}" >&2
+        done
+        read -r -p "Numbers separated by spaces, or 'all': " selection
+        if [[ "$selection" == "all" ]]; then
+            picked=("${items[@]}")
+        else
+            for num in $selection; do
+                if [[ "$num" =~ ^[0-9]+$ ]] && (( num >= 1 && num <= ${#items[@]} )); then
+                    picked+=("${items[$((num - 1))]}")
+                fi
+            done
+        fi
+    fi
+    if (( ${#picked[@]} > 0 )); then
+        printf '%s\n' "${picked[@]}"
     fi
 }
 

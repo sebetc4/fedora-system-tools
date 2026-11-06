@@ -25,3 +25,16 @@ setup() {
     run bash -c 'set -euo pipefail; source "$1/ui.sh"; NONINTERACTIVE=1 ui_press_enter; echo reached' _ "$LIB" < /dev/null
     [[ "$status" -eq 0 && "$output" == *reached* ]] || { echo "status $status: $output"; return 1; }
 }
+
+@test "ui_choose_many: without gum, numbers or all pick, an empty answer picks nothing" {
+    # shellcheck disable=SC2016  # $1 expands in the inner shell
+    local script='source "$1/ui.sh"; has_gum() { return 1; }; ui_choose_many "Pick:" a b c 2>/dev/null'
+    run bash -c "$script" _ "$LIB" <<< "1 3"
+    [[ "$output" == $'a\nc' ]] || { echo "1 3: $output"; return 1; }
+    run bash -c "$script" _ "$LIB" <<< "all"
+    [[ "$output" == $'a\nb\nc' ]] || { echo "all: $output"; return 1; }
+    run bash -c "$script" _ "$LIB" <<< ""
+    [[ -z "$output" ]] || { echo "empty: $output"; return 1; }
+    run bash -c "$script" _ "$LIB" <<< "9"
+    [[ -z "$output" ]] || { echo "9: $output"; return 1; }
+}
