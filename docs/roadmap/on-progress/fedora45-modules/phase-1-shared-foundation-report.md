@@ -102,9 +102,37 @@ creates nothing. `xdg-user-dir` went too, since it sources `user-dirs.dirs` itse
 `user-dirs.dirs` is parsed as text alone. An installed `paths.conf` is kept as it is, per
 the no-migration rule.
 
+`submodule.bats` holds the dependency-order tests: with a chain `report` → `scanner` → `core`,
+`submodule_sort_uninstall` gave `report, core, scanner`, since it only held back a direct
+dependency, so `core` would have come before `scanner` and the deps protection would have
+refused it. No module has a chain today; the function now emits, pass after pass, the
+submodules no pending one depends on, and the five tests pass. Then the rest of `lib/`. In
+`ui.sh`, eight functions are called nowhere, `ui_write`, `ui_file`, `ui_spin`, `ui_pager`,
+`ui_log`, `ui_format`, `ui_join` and `ui_style`: they are removed with their documentation
+(see Decisions), 310 lines out of 613, with the unused `body` of `ui_banner`; its two counters
+are written `i=$((i + 1))` and `i=$((i + 2))`. `color.sh` set its defaults twice and its
+terminal overrides twice, at load and in `color_reload`: each is now one function, which drops
+18 of its 21 `SC2034` directives; `color.bats`, four tests, passed before the change and after.
+The defaults no longer take `COLOR_ACCENT` and `COLOR_ERROR` from the environment, an override
+no document named and `color_reload` ignored. `detect_real_user` in `fs.sh` stops with a message
+on an unknown `SUDO_USER` instead of leaving an empty `REAL_HOME`, and `notify.sh` gives the
+user's files to `SUDO_USER:`. `core.sh`, `config.sh` and `log.sh` needed nothing. `make test`
+runs 55 tests. On both VMs, `tests/vm/run.sh notifications` passes as before, the 3 leftovers
+of Phase 2 aside, the generated `paths.conf` holds single-quoted values, and the system
+registry keeps one blank line after two library installs. `submodule.sh` beyond its sort is
+the next task's.
+
 ---
 
 ## Decisions
+
+- **Release detection picks the highest `vX.Y.Z` release instead of dropping module tags.**
+  Decided on 2026-11-06 under the task's two options: it also guards against a pre-release or a
+  release made by hand, and keeps the release process `docs/core/versioning.md` documents.
+- **A library function no script calls is removed, not kept as API.** Decided on 2026-11-06 from
+  the checklist's "No duplicate, no dead code", which the user approved: eight `ui.sh` functions
+  went. A module that needs one again brings it back with its first caller and a test. Commits
+  every module phase to the same rule for its own functions.
 
 ---
 

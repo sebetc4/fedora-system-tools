@@ -110,7 +110,7 @@ notify_register() {
 
     # Fix ownership if running as root
     if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
-        chown -R "${SUDO_USER}:${SUDO_USER}" "$notify_dir"
+        chown -R "${SUDO_USER}:" "$notify_dir"
     fi
 
     # Reload notify-daemon service if it exists and is active
@@ -127,7 +127,7 @@ notify_register() {
 # Detects if notify-daemon.service is active and reloads it.
 _notify_reload_daemon() {
     local target_user="${SUDO_USER:-$USER}"
-    
+
     # Check if service exists and is active
     local service_status
     if [[ -n "${SUDO_USER:-}" && $EUID -eq 0 ]]; then

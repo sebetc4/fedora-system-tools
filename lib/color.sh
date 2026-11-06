@@ -26,44 +26,44 @@ source "$(dirname "${BASH_SOURCE[0]}")/core.sh"
 # Defaults
 # ===================
 
-# Primary accent color (cursors, selections, banners)
+# Set every color to its default; called at load and by color_reload
 # shellcheck disable=SC2034  # COLOR_* vars used by ui.sh
-COLOR_ACCENT="${COLOR_ACCENT:-"#4f9872"}"
-# Header border color (empty = inherit from accent)
-# shellcheck disable=SC2034
-COLOR_HEADER="#4f9872"
-# Header text color (empty = gum/terminal default)
-# shellcheck disable=SC2034
-COLOR_HEADER_TEXT="#ECEEEC"
-# Selection title color (gum choose --header text, empty = terminal default)
-# shellcheck disable=SC2034
-COLOR_SELECTION_TITLE="#4f9872"
-# Error accent color (error borders)
-# shellcheck disable=SC2034
-COLOR_ERROR="${COLOR_ERROR:-1}"
+_color_defaults() {
+    # Primary accent color (cursors, selections, banners)
+    COLOR_ACCENT="#4f9872"
+    # Header border color (empty = inherit from accent)
+    COLOR_HEADER="#4f9872"
+    # Header text color (empty = gum/terminal default)
+    COLOR_HEADER_TEXT="#ECEEEC"
+    # Selection title color (gum choose --header text, empty = terminal default)
+    COLOR_SELECTION_TITLE="#4f9872"
+    # Error accent color (error borders)
+    COLOR_ERROR=1
 
-# Per-component overrides (empty = inherit from accent)
-_CLR_CHOOSE_CURSOR_FG="#CBB99F"
-_CLR_CHOOSE_SELECTED_FG="#CBB99F"
-_CLR_INPUT_PROMPT_FG=""
-_CLR_INPUT_CURSOR_FG=""
-_CLR_FILTER_INDICATOR_FG=""
-_CLR_FILTER_MATCH_FG=""
-_CLR_CONFIRM_SELECTED_FG=""
-_CLR_SPIN_SPINNER_FG=""
+    # Per-component overrides (empty = inherit from accent)
+    _CLR_CHOOSE_CURSOR_FG="#CBB99F"
+    _CLR_CHOOSE_SELECTED_FG="#CBB99F"
+    _CLR_INPUT_PROMPT_FG=""
+    _CLR_INPUT_CURSOR_FG=""
+    _CLR_FILTER_INDICATOR_FG=""
+    _CLR_FILTER_MATCH_FG=""
+    _CLR_CONFIRM_SELECTED_FG=""
+    _CLR_SPIN_SPINNER_FG=""
 
-# Terminal color overrides (empty = keep core.sh defaults)
-_CLR_TERM_RED=""
-_CLR_TERM_GREEN=""
-_CLR_TERM_YELLOW=""
-_CLR_TERM_CYAN=""
-_CLR_TERM_BLUE=""
-_CLR_TERM_MAGENTA=""
+    # Terminal color overrides (empty = keep core.sh defaults)
+    _CLR_TERM_RED=""
+    _CLR_TERM_GREEN=""
+    _CLR_TERM_YELLOW=""
+    _CLR_TERM_CYAN=""
+    _CLR_TERM_BLUE=""
+    _CLR_TERM_MAGENTA=""
+}
 
 # ===================
 # Config loader
 # ===================
 
+# shellcheck disable=SC2034  # COLOR_* vars used by ui.sh
 _color_load_conf() {
     local conf_file="$1"
     [[ ! -f "$conf_file" ]] && return 0
@@ -113,13 +113,15 @@ _color_user_conf() {
     echo "$home/.config/system-scripts/color.conf"
 }
 
-# Load system config, then user overrides
-if [[ -n "${COLOR_CONF:-}" ]]; then
-    _color_load_conf "$COLOR_CONF"
-else
-    _color_load_conf "/etc/system-scripts/color.conf"
-    _color_load_conf "$(_color_user_conf)"
-fi
+# Load system config, then user overrides; COLOR_CONF alone when set
+_color_load_all() {
+    if [[ -n "${COLOR_CONF:-}" ]]; then
+        _color_load_conf "$COLOR_CONF"
+    else
+        _color_load_conf "/etc/system-scripts/color.conf"
+        _color_load_conf "$(_color_user_conf)"
+    fi
+}
 
 # ===================
 # Export GUM env vars
@@ -139,26 +141,20 @@ _color_apply_gum() {
     export GUM_SPIN_SPINNER_FOREGROUND="${_CLR_SPIN_SPINNER_FG:-$COLOR_ACCENT}"
 }
 
-_color_apply_gum
-
 # ===================
 # Apply terminal color overrides
 # ===================
 
-if [[ -t 1 ]]; then
-    # shellcheck disable=SC2034  # C_* vars used by scripts sourcing this lib
-    [[ -n "$_CLR_TERM_RED" ]]     && C_RED="$_CLR_TERM_RED"
-    # shellcheck disable=SC2034
-    [[ -n "$_CLR_TERM_GREEN" ]]   && C_GREEN="$_CLR_TERM_GREEN"
-    # shellcheck disable=SC2034
-    [[ -n "$_CLR_TERM_YELLOW" ]]  && C_YELLOW="$_CLR_TERM_YELLOW"
-    # shellcheck disable=SC2034
-    [[ -n "$_CLR_TERM_CYAN" ]]    && C_CYAN="$_CLR_TERM_CYAN"
-    # shellcheck disable=SC2034
-    [[ -n "$_CLR_TERM_BLUE" ]]    && C_BLUE="$_CLR_TERM_BLUE"
-    # shellcheck disable=SC2034
-    [[ -n "$_CLR_TERM_MAGENTA" ]] && C_MAGENTA="$_CLR_TERM_MAGENTA"
-fi
+# shellcheck disable=SC2034  # C_* vars used by scripts sourcing this lib
+_color_apply_term() {
+    [[ -t 1 ]] || return 0
+    if [[ -n "$_CLR_TERM_RED" ]]; then C_RED="$_CLR_TERM_RED"; fi
+    if [[ -n "$_CLR_TERM_GREEN" ]]; then C_GREEN="$_CLR_TERM_GREEN"; fi
+    if [[ -n "$_CLR_TERM_YELLOW" ]]; then C_YELLOW="$_CLR_TERM_YELLOW"; fi
+    if [[ -n "$_CLR_TERM_CYAN" ]]; then C_CYAN="$_CLR_TERM_CYAN"; fi
+    if [[ -n "$_CLR_TERM_BLUE" ]]; then C_BLUE="$_CLR_TERM_BLUE"; fi
+    if [[ -n "$_CLR_TERM_MAGENTA" ]]; then C_MAGENTA="$_CLR_TERM_MAGENTA"; fi
+}
 
 # ===================
 # Reload function
@@ -166,60 +162,21 @@ fi
 # Call after modifying color.conf to re-apply theme in current session.
 
 color_reload() {
-    # Reset defaults
-    # shellcheck disable=SC2034  # COLOR_* vars used by scripts sourcing this lib
-    COLOR_ACCENT="#4f9872"
-    # shellcheck disable=SC2034
-    COLOR_HEADER="#4f9872"
-    # shellcheck disable=SC2034
-    COLOR_HEADER_TEXT="#ECEEEC"
-    # shellcheck disable=SC2034
-    COLOR_SELECTION_TITLE="#4f9872"
-    COLOR_ERROR=1
-    _CLR_CHOOSE_CURSOR_FG="#CBB99F"
-    _CLR_CHOOSE_SELECTED_FG="#CBB99F"
-    _CLR_INPUT_PROMPT_FG=""
-    _CLR_INPUT_CURSOR_FG=""
-    _CLR_FILTER_INDICATOR_FG=""
-    _CLR_FILTER_MATCH_FG=""
-    _CLR_CONFIRM_SELECTED_FG=""
-    _CLR_SPIN_SPINNER_FG=""
-    _CLR_TERM_RED=""
-    _CLR_TERM_GREEN=""
-    _CLR_TERM_YELLOW=""
-    _CLR_TERM_CYAN=""
-    _CLR_TERM_BLUE=""
-    _CLR_TERM_MAGENTA=""
-
-    # Reload config
-    if [[ -n "${COLOR_CONF:-}" ]]; then
-        _color_load_conf "$COLOR_CONF"
-    else
-        _color_load_conf "/etc/system-scripts/color.conf"
-        _color_load_conf "$(_color_user_conf)"
-    fi
+    _color_defaults
+    _color_load_all
 
     # Clear conditional GUM vars before re-apply
-    unset GUM_CHOOSE_HEADER_FOREGROUND 2>/dev/null || true
+    unset GUM_CHOOSE_HEADER_FOREGROUND
 
-    # Re-apply GUM vars
     _color_apply_gum
-
-    # Re-apply terminal colors
-    if [[ -t 1 ]]; then
-        # shellcheck disable=SC2034  # C_* vars used by scripts sourcing this lib
-        [[ -n "$_CLR_TERM_RED" ]]     && C_RED="$_CLR_TERM_RED"
-        # shellcheck disable=SC2034
-        [[ -n "$_CLR_TERM_GREEN" ]]   && C_GREEN="$_CLR_TERM_GREEN"
-        # shellcheck disable=SC2034
-        [[ -n "$_CLR_TERM_YELLOW" ]]  && C_YELLOW="$_CLR_TERM_YELLOW"
-        # shellcheck disable=SC2034
-        [[ -n "$_CLR_TERM_CYAN" ]]    && C_CYAN="$_CLR_TERM_CYAN"
-        # shellcheck disable=SC2034
-        [[ -n "$_CLR_TERM_BLUE" ]]    && C_BLUE="$_CLR_TERM_BLUE"
-        # shellcheck disable=SC2034
-        [[ -n "$_CLR_TERM_MAGENTA" ]] && C_MAGENTA="$_CLR_TERM_MAGENTA"
-    fi
-
-    return 0
+    _color_apply_term
 }
+
+# ===================
+# Load
+# ===================
+
+_color_defaults
+_color_load_all
+_color_apply_gum
+_color_apply_term

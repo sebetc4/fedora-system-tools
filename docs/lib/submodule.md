@@ -132,7 +132,10 @@ Uninstall a single submodule. Called by `submodule_run_uninstall` for each selec
 
 ### `submodule_sort_uninstall yml_path submodules...`
 
-Sort submodules for safe uninstall order: dependents first, then deps targets (core last).
+Sort submodules for safe uninstall order: no submodule comes before one that depends on it, at
+any depth (`report` → `scanner` → `core` for a chain), and independent submodules keep the order
+given. A dependency that is not selected holds nothing back; the uninstall's deps protection
+deals with it.
 
 ```bash
 mapfile -t sorted < <(submodule_sort_uninstall "$MODULE_YML" "${selected[@]}")

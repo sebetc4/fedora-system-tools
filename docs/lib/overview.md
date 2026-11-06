@@ -194,18 +194,8 @@ action=$(ui_choose --header "Action:" "Scan" "Delete" "Skip")
 ### Text Input
 
 ```bash
-# Single line
 ip=$(ui_input "IP Address" "192.168.1.1")
-
-# Multi-line
-notes=$(ui_write "Notes" "Enter your notes..." 5)
-```
-
-### File Selection
-
-```bash
-file=$(ui_file "/var/quarantine")
-iso=$(ui_file "/home/user/Downloads" "*.iso")
+pass=$(ui_password "Master password")
 ```
 
 ### Fuzzy Filter
@@ -216,13 +206,6 @@ result=$(ui_filter "item1" "item2" "item3")
 
 # From stdin
 result=$(find /etc -name "*.conf" | ui_filter)
-```
-
-### Spinner
-
-```bash
-ui_spin "Scanning..." clamdscan "$file"
-# Displays a spinner while the command runs
 ```
 
 ### Table
@@ -238,19 +221,6 @@ ui_table -s "|" "Col1|Col2" "val1|val2"
 echo -e "Name,Size\nfile1,1.2 GB\nfile2,500 MB" | ui_table
 ```
 
-### Pager
-
-```bash
-# Direct content
-ui_pager "$long_text"
-
-# From stdin
-generate_report | ui_pager
-
-# From a file
-ui_pager --file /var/log/scan.log
-```
-
 ### Header and Banners
 
 ```bash
@@ -262,43 +232,6 @@ ui_banner "SCAN COMPLETE" "Files scanned: 42" "Threats: 0"
 
 # Error banner (red border)
 ui_error_banner "SCAN FAILED" "Connection refused" "Check clamd"
-```
-
-### Styled Log
-
-```bash
-ui_log info "Operation started"       # INF blue
-ui_log warn "Low disk space"          # WRN yellow
-ui_log error "Connection failed"      # ERR red
-ui_log fatal "Unrecoverable error"    # FTL bold red
-ui_log debug "var=$val"               # DBG dim
-```
-
-### Text Formatting
-
-```bash
-# Markdown (default)
-ui_format "# Title\n\nText with **bold**"
-
-# Code
-ui_format --type code "echo hello world"
-
-# Emoji (Gum renders shortcodes, fallback prints as-is)
-ui_format --type emoji ":rocket: Deploy complete"
-
-# Template (Gum template syntax, falls back to markdown rendering)
-ui_format --type template "{{ Bold \"important\" }}"
-```
-
-### Style and Composition
-
-```bash
-# Style text
-ui_style --border rounded --bold "Important message"
-
-# Join blocks
-ui_join horizontal "$(ui_style --border rounded 'Block 1')" "$(ui_style --border rounded 'Block 2')"
-ui_join vertical "$block1" "$block2"
 ```
 
 ---

@@ -52,23 +52,6 @@ Silent password input (no echo).
 pass=$(ui_password "Master password")
 ```
 
-### `ui_write prompt [placeholder] [height]`
-
-Multi-line text input. Finish with Ctrl+D in fallback mode.
-
-```bash
-text=$(ui_write "Enter a description" "Type here..." 5)
-```
-
-### `ui_file dir [filter]`
-
-Pick a file from a directory. Supports glob filter.
-
-```bash
-file=$(ui_file "/path/to/dir")
-file=$(ui_file "/path/to/dir" "*.iso")
-```
-
 ### `ui_filter [items...]`
 
 Fuzzy filter a list. Works with args or piped stdin.
@@ -76,14 +59,6 @@ Fuzzy filter a list. Works with args or piped stdin.
 ```bash
 result=$(echo -e "item1\nitem2\nitem3" | ui_filter)
 result=$(ui_filter "apple" "banana" "cherry")
-```
-
-### `ui_spin title command [args...]`
-
-Show a spinner while running a command in subprocess.
-
-```bash
-ui_spin "Connecting to VPN..." wait_vpn_ready
 ```
 
 ### `ui_table [separator] rows...`
@@ -94,51 +69,6 @@ Display tabular data. Default separator is comma. Works with args or piped stdin
 ui_table "Name,Size,Date" "file1,1.2 GB,2024-01-15"
 ui_table -s "|" "Col1|Col2" "val1|val2"
 echo "csv data" | ui_table
-```
-
-### `ui_pager content`
-
-Scrollable content display. Uses `gum pager`, falls back to `less`/`more`/`cat`.
-
-```bash
-ui_pager "long content..."
-cmd_with_long_output | ui_pager
-ui_pager --file /path/to/file
-```
-
-### `ui_log level message`
-
-Styled log message with level prefix. Levels: `debug`, `info`, `warn`, `error`, `fatal`.
-
-```bash
-ui_log info "Operation started"
-ui_log error "Connection failed"
-```
-
-### `ui_format text`
-
-Text formatting (markdown, code, template, emoji). Uses `gum format`.
-
-```bash
-ui_format "# Title\n\nText with **bold**"
-ui_format --type code "echo hello world"
-```
-
-### `ui_join direction blocks...`
-
-Join text blocks horizontally or vertically.
-
-```bash
-ui_join horizontal "$(cmd1)" "$(cmd2)"
-ui_join vertical "block1" "block2"
-```
-
-### `ui_style text`
-
-Style text with borders, colors, padding. Passes args directly to `gum style`.
-
-```bash
-ui_style --border rounded --bold "Important text"
 ```
 
 ### `ui_header title`

@@ -168,40 +168,44 @@ _get_sub_version() {
 # UNINSTALL ORDERING
 # =============================================================================
 
-# Sort submodules for uninstall: dependencies last
+# Sort submodules for uninstall: dependencies last, at any depth
 # Args: module_yml submodule_names...
-# Output: sorted names (one per line), deps after their dependents
+# Output: sorted names (one per line). Each pass emits, in the given order,
+# the submodules no pending one depends on; a dependency cycle, which no
+# pass can break, is emitted as it stands.
 submodule_sort_uninstall() {
     local module_yml="$1"
     shift
-    local subs=("$@")
+    local pending=("$@")
+    local -A deps_of=()
+    local sub other needed
+    for sub in "${pending[@]}"; do
+        deps_of[$sub]=" $(submodule_get_array "$sub" "deps" "$module_yml" | tr '\n' ' ')"
+    done
 
-    local ordered=()
-    local deferred=()
-
-    for sub in "${subs[@]}"; do
-        local is_dep_of_selected=false
-        for other in "${subs[@]}"; do
-            [[ "$other" == "$sub" ]] && continue
-            local other_deps
-            mapfile -t other_deps < <(submodule_get_array "$other" "deps" "$module_yml")
-            for d in "${other_deps[@]}"; do
-                if [[ "$d" == "$sub" ]]; then
-                    is_dep_of_selected=true
+    while (( ${#pending[@]} > 0 )); do
+        local emitted=() held=()
+        for sub in "${pending[@]}"; do
+            needed=false
+            for other in "${pending[@]}"; do
+                if [[ "$other" != "$sub" && "${deps_of[$other]}" == *" $sub "* ]]; then
+                    needed=true
                     break
                 fi
             done
-            [[ "$is_dep_of_selected" == "true" ]] && break
+            if [[ "$needed" == "true" ]]; then
+                held+=("$sub")
+            else
+                emitted+=("$sub")
+            fi
         done
-
-        if [[ "$is_dep_of_selected" == "true" ]]; then
-            deferred+=("$sub")
-        else
-            ordered+=("$sub")
+        if (( ${#emitted[@]} == 0 )); then
+            emitted=("${held[@]}")
+            held=()
         fi
+        printf '%s\n' "${emitted[@]}"
+        pending=("${held[@]}")
     done
-
-    printf '%s\n' "${ordered[@]}" "${deferred[@]}"
 }
 
 # =============================================================================

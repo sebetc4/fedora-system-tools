@@ -29,7 +29,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/log.sh"
 detect_real_user() {
     if [[ -n "${SUDO_USER:-}" ]]; then
         REAL_USER="$SUDO_USER"
-        REAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+        REAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6) || true
+        [[ -n "$REAL_HOME" ]] || error "No home found for user '$SUDO_USER'" "exit"
     else
         REAL_USER="$USER"
         REAL_HOME="$HOME"
