@@ -67,7 +67,7 @@ Repositories (phase 2) and package lists (phase 4).
 - [ ] Step `dnf-config`: set `max_parallel_downloads` and `defaultyes` from the profile; disable `countme` per repository with `setopt` when the profile asks for it; no `installonly_limit`, `fastestmirror`, or `deltarpm`
 
 ### Tooling & Profiles
-- [ ] Add the `postinstall/` scripts to the Makefile `shellcheck` target
+- [ ] Check that `make shellcheck` lints the `postinstall/` scripts, which it picks up on its own since roadmap `fedora45-modules`, Phase 0
 - [ ] Declare `POSTINSTALL_VERSION` (`0.1.0`) in `postinstall.sh`, and add `postinstall/` to `docs/core/versioning.md` as a component outside the release tarball, which needs no project bump
 - [ ] Create the profile chain `default` → `personal` → machine (`legion-7`, `legion-5` skeletons), loaded through each `profile.conf`'s `PARENT`, with cycle and missing-parent errors, desktop-specific content (`packages.<desktop>.list`, `flatpaks.<desktop>.list`, `gnome/`, `kde/`) loaded only when the detected desktop matches
 
@@ -80,7 +80,6 @@ Repositories (phase 2) and package lists (phase 4).
 postinstall/postinstall.sh        (to be created)
 postinstall/steps/                (to be created)
 postinstall/profiles/             (to be created)
-Makefile                          (shellcheck target)
 ```
 
 ### Dependencies

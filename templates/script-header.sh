@@ -37,7 +37,8 @@ source "$LIB_DIR/core.sh"
 # ===================
 # Configuration
 # ===================
-readonly SCRIPT_NAME="$(basename "$0")"
+SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_NAME
 
 # ===================
 # Functions

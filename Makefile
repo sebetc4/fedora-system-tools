@@ -171,32 +171,13 @@ upgrade:
 # ===================
 # Quality checks
 # ===================
+# Every *.sh file git tracks, plus new ones not ignored yet (wildcard drops
+# files deleted from the working tree but still in the index).
+SHELL_SCRIPTS = $(wildcard $(shell git ls-files --cached --others --exclude-standard '*.sh'))
+
 shellcheck:
-	@echo "==> Running ShellCheck..."
-	@shellcheck -x \
-		lib/*.sh \
-		modules/clamav/scripts/core/*.sh modules/clamav/scripts/services/*.sh modules/clamav/scripts/tools/*.sh \
-		modules/clamav/install.sh modules/clamav/uninstall.sh \
-		modules/clamav/shared/*.sh \
-		modules/torrent/scripts/*.sh modules/torrent/install.sh modules/torrent/uninstall.sh \
-		modules/notifications/scripts/*.sh modules/notifications/install.sh modules/notifications/uninstall.sh \
-		modules/nautilus/scripts/*.sh modules/nautilus/install.sh modules/nautilus/uninstall.sh \
-		modules/firewall/scripts/*.sh modules/firewall/install.sh modules/firewall/uninstall.sh \
-		modules/backup/install.sh modules/backup/uninstall.sh \
-		modules/backup/local/backup.sh \
-		modules/backup/local/hooks.d/pre-backup/btrfs-save-structure.sh \
-		modules/backup/hdd-to-hdd/backup.sh \
-		modules/backup/hdd-to-both-hdd/backup.sh \
-		modules/backup/bitwarden/backup-bitwarden.sh \
-		modules/backup/vps/backup-vps.sh \
-		modules/backup/vps/hooks/*.sh \
-		modules/build-kernel/scripts/build-kernel.sh \
-		modules/build-kernel/scripts/lib/*.sh \
-		modules/build-kernel/hooks/aw88399/aw88399.sh \
-		modules/build-kernel/hooks/aw88399/lib/*.sh \
-		modules/build-kernel/shared/*.sh \
-		modules/build-kernel/install.sh modules/build-kernel/uninstall.sh \
-		setup.sh
+	@echo "==> Running ShellCheck on $(words $(SHELL_SCRIPTS)) scripts..."
+	@shellcheck -x $(SHELL_SCRIPTS)
 	@echo "ShellCheck passed"
 
 lint: shellcheck

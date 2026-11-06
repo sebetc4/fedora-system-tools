@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (0% — 0/8)
+**Current Status:** 🟡 In Progress (13% — 1/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -38,7 +38,7 @@ Reviewing any module (phases 1 to 6).
   Proof: medium, a run on both VMs for one module, a deliberately failing check reported as failed
 
 ### Lint And CI
-- [ ] Replace the Makefile's hand-written `shellcheck` list with `git ls-files '*.sh'`, which adds the 11 scripts it misses
+- [x] Replace the Makefile's hand-written `shellcheck` list with `git ls-files '*.sh'`, which adds the 11 scripts it misses
   Proof: medium, check — `make shellcheck` passes, and fails on a deliberately bad new script
 - [ ] Run CI's ShellCheck at the local version instead of Ubuntu's, and add `make test` to CI
   Proof: medium, a green CI run on GitHub
