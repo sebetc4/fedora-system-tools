@@ -1,8 +1,13 @@
 language   = "english"
 versioning = "git"
+checks     = ["make shellcheck", "make test"]
 
 [roadmap]
 root = "docs/roadmap"
+
+[docs]
+root  = "docs"
+notes = "notes"
 
 [git]
 push   = "auto"

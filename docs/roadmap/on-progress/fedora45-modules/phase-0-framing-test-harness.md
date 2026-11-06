@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (25% — 2/8)
+**Current Status:** 🟡 In Progress (63% — 5/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -28,7 +28,7 @@ Reviewing any module (phases 1 to 6).
   Proof: medium, the user's review of the checklist
 - [ ] Add to `docs/core/conventions.md` the rules the repository review showed missing, starting with counters under `set -e` (`((n++))` from 0 aborts the script)
   Proof: low, the rule read beside its reproduction command
-- [ ] Decide with the user where personal settings live (module config files, the ignored `my-config/`, the postinstall `personal` profile) and what the public repository must never hold
+- [x] Decide with the user where personal settings live (module config files, the ignored `my-config/`, the postinstall `personal` profile) and what the public repository must never hold
   Proof: medium, the user's decision recorded in the report
 
 ### Tests
@@ -40,9 +40,9 @@ Reviewing any module (phases 1 to 6).
 ### Lint And CI
 - [x] Replace the Makefile's hand-written `shellcheck` list with `git ls-files '*.sh'`, which adds the 11 scripts it misses
   Proof: medium, check — `make shellcheck` passes, and fails on a deliberately bad new script
-- [ ] Run CI's ShellCheck at the local version instead of Ubuntu's, and add `make test` to CI
+- [x] Run CI's ShellCheck at the local version instead of Ubuntu's, and add `make test` to CI
   Proof: medium, a green CI run on GitHub
-- [ ] Declare `checks` in `.agent-conventions.toml`, on the user's agreement (`make shellcheck`, `make test`), so that each phase closure runs them
+- [x] Declare `checks` in `.agent-conventions.toml`, on the user's agreement (`make shellcheck`, `make test`), so that each phase closure runs them
   Proof: low, check — `conventions.py roadmap` prints them
 
 ---
