@@ -36,9 +36,9 @@ sudo make install          # Install lib + all modules
 ### Requirements
 
 - Fedora Linux (tested on Fedora 42+)
-- Bash 4+, `curl`, `tar`, `sudo`
-- [yq](https://github.com/mikefarah/yq) (installed automatically if missing)
-- [Gum](https://github.com/charmbracelet/gum) (optional — enhances the interactive UI, auto-installed with lib)
+- Bash 4+, `curl`, `tar`, `sudo`, and `make` for the `make` targets (`sudo dnf install make`)
+- [yq](https://github.com/mikefarah/yq) (installed from Fedora's repositories with the lib)
+- [Gum](https://github.com/charmbracelet/gum) (installed from Fedora's repositories with the lib; skipped with `--no-gum`, the menus then falling back to plain bash)
 
 ## Modules
 

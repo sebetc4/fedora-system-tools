@@ -11,7 +11,7 @@ document per file.
 - [core.sh — Base Module](core.md) — colors, typed messages, root and dependency checks, Gum detection; read before writing a script that sources the library.
 - [format.sh — Size, Date & Name Formatting](format.md) — human-readable sizes, dates and truncated names; read when formatting output.
 - [fs.sh — Filesystem Helpers](fs.md) — mount checks, BTRFS detection, disk usage, sudo-aware user and home; read when a script touches filesystems or resolves the real user.
-- [install.sh — Library & Gum Installer](install.md) — the library's installer and the `paths.conf` and `color.conf` it generates; read when changing how the library installs.
+- [install.sh — Library & Dependencies Installer](install.md) — the library's installer, the `yq` and `gum` packages it installs, and the `paths.conf` and `color.conf` it generates; read when changing how the library installs.
 - [log.sh — Structured Logging](log.md) — timestamped logging to stdout and a log file; read when a script logs.
 - [notify.sh — Notification Registration Helpers](notify.md) — registering notification tags with `notify-daemon`; read when a module sends notifications.
 - [paths.sh — Locale-Aware Download Path Detection](paths.md) — download directory detection and `paths.conf`; read when a module needs the user's directories.

@@ -54,6 +54,22 @@ to 0.1.1; the lib stays at 0.5.1, this phase's patch. Its review, with `setup.sh
 more thing to settle: its step 5 removes the whole `~/.config/system-scripts`, where the user's
 `color.conf` and `bookmarks.conf` also live.
 
+Bootstrap. Fedora 45 ships both tools: `gum` 2.0.2 and `yq` 4.53.3 (mikefarah's) in `fedora` and
+`updates`. Gum's jump from 0.17 to 2.0 was checked first in a `fedora:45` container: every flag
+the scripts pass to `choose`, `style`, `input`, `spin`, `table`, `log`, `join` and `format`, and
+the nine `GUM_*_FOREGROUND` variables, are still in gum 2.0.2's help; the menus' behaviour under
+gum 2 waits for `ui.sh`'s review. `lib/install.sh` now installs, before the library and in one
+`dnf` transaction, whichever of `yq` and `gum` is missing, without asking: the `[y/N]` prompt
+went with the Charm repository, its heredoc, its `rpm --import … || true`, and the `apt-get`
+branch, Fedora being the only target. `--no-gum` still skips Gum. The script gained the ERR
+trap it lacked. Lib bumped to 0.6.0, a minor: the installer does more. `tests/vm/prereqs.list`
+keeps `make` alone. Proof: `tests/vm/run.sh notifications` from `clean-install` on both VMs,
+neither holding `yq` nor `gum`: the `lib` step installs `yq-4.53.3-2.fc45` and
+`gum-2.0.2-1.fc45` and prints both versions, then the install, both checks and the uninstall
+pass, the leftovers the same 3 folders as before. `README.md` no longer says `yq` installs on
+its own and names `make`, and `docs/lib/install.md` and `docs/lib/overview.md` describe the new
+step.
+
 ---
 
 ## Decisions

@@ -1,20 +1,22 @@
 #!/bin/bash
 # =============================================================================
-# LIB INSTALL - Shared library & Gum installation
+# LIB INSTALL - Shared library & dependencies installation
 # =============================================================================
-# Installs the shared bash library to /usr/local/lib/system-scripts/ and
-# optionally installs Gum (terminal UI toolkit by Charm).
+# Installs yq and Gum from Fedora's repositories, then the shared bash library
+# to /usr/local/lib/system-scripts/. yq parses every module.yml; Gum drives
+# the interactive menus, which fall back to plain bash without it.
 #
 # Module: lib
 # Requires: core (local source, not yet installed)
-# Version: 0.5.1
+# Version: 0.6.0
 #
 # Usage:
-#   sudo ./lib/install.sh          # Install lib + gum
-#   sudo ./lib/install.sh --no-gum # Install lib only
+#   sudo ./lib/install.sh          # Install yq, gum and the lib
+#   sudo ./lib/install.sh --no-gum # Install yq and the lib, without gum
 # =============================================================================
 
 set -euo pipefail
+trap 'echo "ERROR: Library installation failed at line $LINENO" >&2; exit 1' ERR
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly LIB_DIR
@@ -37,6 +39,30 @@ done
 # Root check
 # ===================
 check_root "$@"
+
+# ===================
+# Install dependencies
+# ===================
+packages=(yq)
+if [[ "$INSTALL_GUM" == true ]]; then
+    packages+=(gum)
+else
+    info "Skipping Gum (--no-gum): menus will use the bash fallback."
+fi
+
+missing=()
+for pkg in "${packages[@]}"; do
+    command -v "$pkg" &>/dev/null || missing+=("$pkg")
+done
+if (( ${#missing[@]} > 0 )); then
+    info "Installing ${missing[*]} from Fedora's repositories..."
+    dnf install -y "${missing[@]}"
+fi
+success "yq: $(yq --version)"
+if command -v gum &>/dev/null; then
+    success "Gum: $(gum --version)"
+fi
+echo ""
 
 # ===================
 # Install shared library
@@ -68,65 +94,6 @@ while IFS= read -r module_name; do
     echo "  - $module_name"
 done <<< "$lib_modules"
 echo ""
-
-# ===================
-# Install Gum
-# ===================
-if [[ "$INSTALL_GUM" == true ]]; then
-    if command -v gum &>/dev/null; then
-        success "Gum already installed: $(gum --version 2>/dev/null || echo 'unknown version')"
-    else
-        install_gum_confirmed=false
-        echo -e "${C_YELLOW}Gum (terminal UI toolkit) is not installed.${C_NC}"
-        echo "  Gum provides interactive menus. Without it, scripts use bash fallback mode."
-        read -r -p "Install gum? [y/N] " confirm_gum
-        [[ "${confirm_gum,,}" == "y" ]] && install_gum_confirmed=true
-
-        if [[ "$install_gum_confirmed" == true ]]; then
-            info "Installing Gum..."
-
-            # Try dnf first (Fedora/RHEL), then apt (Debian/Ubuntu), then binary
-            if command -v dnf &>/dev/null; then
-                # Charm repo for Fedora
-                if ! dnf repolist --enabled 2>/dev/null | grep -q charm; then
-                    rpm --import https://repo.charm.sh/yum/gpg.key 2>/dev/null || true
-                    cat > /etc/yum.repos.d/charm.repo << 'EOF'
-[charm]
-name=Charm
-baseurl=https://repo.charm.sh/yum/
-enabled=1
-gpgcheck=1
-gpgkey=https://repo.charm.sh/yum/gpg.key
-EOF
-                fi
-                dnf install -y gum
-
-            elif command -v apt-get &>/dev/null; then
-                mkdir -p /etc/apt/keyrings
-                curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg 2>/dev/null
-                echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" > /etc/apt/sources.list.d/charm.list
-                apt-get update -qq && apt-get install -y gum
-
-            else
-                warn "Cannot auto-install Gum (no supported package manager)"
-                echo "Install manually: https://github.com/charmbracelet/gum#installation"
-                echo "Scripts will work without Gum (bash fallback mode)."
-            fi
-
-            # Verify installation
-            if command -v gum &>/dev/null; then
-                success "Gum installed: $(gum --version 2>/dev/null || echo 'ok')"
-            fi
-        else
-            info "Skipping Gum — scripts will use bash fallback mode."
-        fi
-    fi
-else
-    echo "Skipping Gum installation (--no-gum)"
-    if ! command -v gum &>/dev/null; then
-        echo "Note: Scripts will use bash fallback mode without Gum."
-    fi
-fi
 
 # ===================
 # Generate paths.conf

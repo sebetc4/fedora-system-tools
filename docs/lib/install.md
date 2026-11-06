@@ -1,6 +1,6 @@
-# install.sh — Library & Gum Installer
+# install.sh — Library & Dependencies Installer
 
-> Not a library — this is the installer script for the shared lib. Installs all `.sh` files to `/usr/local/lib/system-scripts/`, optionally installs Gum, generates `paths.conf` and `color.conf`, and registers lib in the module registry.
+> Not a library — this is the installer script for the shared lib. Installs yq and Gum from Fedora's repositories, all `.sh` files to `/usr/local/lib/system-scripts/`, generates `paths.conf` and `color.conf`, and registers lib in the module registry.
 
 **Requires:** root (`sudo`)
 **Location:** `lib/install.sh`
@@ -10,27 +10,29 @@
 ## Usage
 
 ```bash
-sudo ./lib/install.sh          # Install lib + Gum
-sudo ./lib/install.sh --no-gum # Install lib only (bash fallback mode)
+sudo ./lib/install.sh          # Install yq, Gum and the lib
+sudo ./lib/install.sh --no-gum # Install yq and the lib, without Gum (bash fallback mode)
 ```
 
 ---
 
 ## What It Does
 
-### 1. Install Library Files
+### 1. Install Dependencies
+
+Installs with `dnf`, in one transaction, the commands missing among:
+
+- `yq`, which parses every `module.yml` and the YAML configs; always installed
+- `gum`, which draws the interactive menus; skipped with `--no-gum`, the scripts then using their bash fallback
+
+Both come from Fedora's repositories; no third-party repository is added. Nothing is asked: the
+install runs unattended.
+
+### 2. Install Library Files
 
 Copies all 13 lib modules to `/usr/local/lib/system-scripts/` with mode `644`:
 
 `core.sh`, `log.sh`, `config.sh`, `format.sh`, `ui.sh`, `yaml.sh`, `validate.sh`, `fs.sh`, `registry.sh`, `notify.sh`, `submodule.sh`, `paths.sh`, `color.sh`
-
-### 2. Install Gum
-
-Unless `--no-gum` is passed:
-- Skips if already installed
-- Tries `dnf` (Fedora/RHEL) with Charm repo
-- Falls back to `apt-get` (Debian/Ubuntu) with Charm repo
-- Warns if no supported package manager found
 
 ### 3. Generate `paths.conf`
 

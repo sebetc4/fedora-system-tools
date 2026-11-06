@@ -5,13 +5,14 @@ Modular library for system scripts. Provides colors, typed messages, logging, in
 ## Installation
 
 ```bash
-sudo ./install.sh          # Install lib + Gum
-sudo ./install.sh --no-gum # Install lib only
+sudo ./lib/install.sh          # Install yq, Gum and the lib
+sudo ./lib/install.sh --no-gum # Install yq and the lib, without Gum
 ```
 
 Modules are deployed to `/usr/local/lib/system-scripts/`.
 
-The installer supports Fedora/RHEL (dnf) and Debian/Ubuntu (apt) for automatic Gum installation. On unsupported systems, Gum can be installed manually from [GitHub releases](https://github.com/charmbracelet/gum/releases) — scripts will work without it (pure bash fallback).
+The installer installs yq and Gum from Fedora's repositories when they are missing. Without Gum
+(`--no-gum`), scripts use their pure bash fallback.
 
 ## Modules
 
@@ -434,6 +435,6 @@ Each module has a **double-sourcing guard** (`_LIB_*_LOADED`) — it is safe to 
 | Tool | Required by | Mandatory? |
 |------|-------------|------------|
 | [Gum](https://github.com/charmbracelet/gum) | ui.sh | No — pure bash fallback |
-| [yq](https://github.com/mikefarah/yq) | yaml.sh | Yes if yaml.sh is used |
+| [yq](https://github.com/mikefarah/yq) | yaml.sh, submodule.sh, every module installer | Yes — installed by `lib/install.sh` |
 | bc | format.sh | Yes (installed by default on Fedora) |
 

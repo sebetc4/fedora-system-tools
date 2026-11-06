@@ -4,7 +4,7 @@
 
 ## Status
 
-**Current Status:** 🟡 In Progress (25% — 2/8)
+**Current Status:** 🟡 In Progress (38% — 3/8)
 **Started:** 2026-11-06
 **Completed:** {{COMPLETION_DATE}}
 **Blocked By:** —
@@ -34,7 +34,7 @@ The modules themselves (phases 2 to 6).
   Proof: medium, test — `bats` tests of both, watched failing then passing
 
 ### Bootstrap
-- [ ] In `lib/install.sh`, install `gum` from Fedora's repositories, remove the Charm repository and its heredoc, and install `yq`, which every installer requires and `README.md` wrongly says is automatic
+- [x] In `lib/install.sh`, install `gum` from Fedora's repositories, remove the Charm repository and its heredoc, and install `yq`, which every installer requires and `README.md` wrongly says is automatic
   Proof: medium, a run on a fresh VM snapshot holding neither `yq` nor `gum`
 - [ ] Review `setup.sh`, `install.sh` and `uninstall.sh` against the checklist, splitting `setup.sh` (2188 lines) if the review calls for it
   Proof: medium, use — install, list, upgrade, reinstall and uninstall of one module on both VMs
