@@ -122,6 +122,25 @@ of Phase 2 aside, the generated `paths.conf` holds single-quoted values, and the
 registry keeps one blank line after two library installs. `submodule.sh` beyond its sort is
 the next task's.
 
+Session closed with five of the eight tasks done, each committed and pushed, CI green on every
+push, `yq` included. The menus were not tried by hand under gum 2.0.2: only its flags and
+variables were checked, so the interactive use of `setup.sh` on the VMs is where its behaviour
+shows. Seen during the review and left to the tasks that own them: `submodule.sh` still holds
+five counters (`((i++))`, `(( ++idx ))`, `(( ++remaining ))`); `setup.sh` keeps its own copies of
+`has_gum`, `ui_choose`, `ui_confirm`, `ui_header`, `error`, `warn`, `info`, `success`, of
+`_version_compare` and of the color defaults, which `color_reload` now resets alone.
+
+**Where the next session starts:**
+1. Review `lib/submodule.sh` against the checklist, its five counters included; proof: an
+   uninstall on a VM removes the declared files and nothing else, which needs the checks of a
+   module with a `core` submodule under `tests/vm/checks/`.
+2. Seed config files from `my-config/` in the same engine, never overwriting an installed one.
+3. Review `setup.sh`, `install.sh` and `uninstall.sh`: its copies of library functions and of
+   `_version_compare`, the menus under gum 2 on both VMs, and `uninstall.sh`'s removal of the
+   whole `~/.config/system-scripts`, where `color.conf` and `bookmarks.conf` live.
+- This machine's `~/.config/system-scripts/registry` is still `root:root`, waiting for a write
+  as the user or `sudo chown "$USER:" ~/.config/system-scripts/registry`.
+
 ---
 
 ## Decisions
